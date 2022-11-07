@@ -24,6 +24,7 @@ using namespace std;
 #include <WS2tcpip.h>
 #include <vector>
 #include <unordered_map>
+#include <fstream>
 
 #include "..\..\protocol.h"
 

@@ -1,9 +1,11 @@
 #pragma once
 #include "stdafx.h"
 
+enum S_STATE {ST_FREE, ST_ALLOC, ST_INGAME};
+
 class CNPC
 {
-private:
+public:
 	char m_name[NAME_SIZE];
 	short m_id;
 	short m_exp;
@@ -11,18 +13,10 @@ private:
 	short m_hp;
 	short m_x;
 	short m_y;
-	mutex _s_lock;
-	S_STATE _state;
+
+	mutex m_s_lock;
+	S_STATE m_state;
 
 	unsigned m_move_time;
-
-public:
-	short GetID() { return m_id; }
-	short GetX() { return m_x; }
-	short GetY() { return m_y; }
-	short GetExp() { return m_exp; }
-	short GetLevel() { return m_level; }
-	char* GetName() { return m_name; }
-	unsigned GetMoveTime() { return m_move_time; }
 };
 

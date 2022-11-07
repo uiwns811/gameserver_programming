@@ -6,25 +6,25 @@ enum COMP_TYPE {OP_ACCEPT, OP_RECV, OP_SEND };
 class EXP_OVER
 {
 public:
-	WSAOVERLAPPED _over;
-	WSABUF _wsabuf;
-	char _send_buf[BUF_SIZE];
-	COMP_TYPE _comp_type;
+	WSAOVERLAPPED over;
+	WSABUF wsabuf;
+	char sendbuf[BUF_SIZE];
+	COMP_TYPE op_type;
 
 	EXP_OVER()
 	{
-		_wsabuf.len = BUF_SIZE;
-		_wsabuf.buf = _send_buf;
-		_comp_type = OP_RECV;
-		ZeroMemory(&_over, sizeof(_over));
+		wsabuf.len = BUF_SIZE;
+		wsabuf.buf = sendbuf;
+		op_type = OP_RECV;
+		ZeroMemory(&over, sizeof(over));
 	}
 
 	EXP_OVER(char* packet)
 	{
-		_wsabuf.len = packet[0];
-		_wsabuf.buf = _send_buf;
-		ZeroMemory(&_over, sizeof(_over));
-		_comp_type = OP_SEND;
-		memcpy(_send_buf, packet, packet[0]);
+		wsabuf.len = packet[0];
+		wsabuf.buf = sendbuf;
+		ZeroMemory(&over, sizeof(over));
+		op_type = OP_SEND;
+		memcpy(sendbuf, packet, packet[0]);
 	}
 };

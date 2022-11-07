@@ -21,13 +21,18 @@ void CPlayerMgr::CleanUp()
 
 void CPlayerMgr::Move(short id, short x, short y)
 {
-	if (players.count(id))
-		players[id]->Move(x, y);
+	if (id >= MAX_USER) return;
 
 	if (id == m_avatarID) {
+		players[id]->Move(x, y);
 		m_left = x - SCREEN_WIDTH / 2;
 		m_top = y - SCREEN_HEIGHT / 2;
 	}
+	else {
+		players[id]->Move(x, y);
+	}
+
+	cout << x << ", " << y << endl;
 }
 
 void CPlayerMgr::GetAvaterPos(short& x, short& y) 
