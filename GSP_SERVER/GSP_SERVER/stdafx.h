@@ -12,8 +12,8 @@
 #pragma comment(lib, "WS2_32.lib")
 #pragma comment(lib, "MSWSock.lib")
 using namespace std;
-constexpr auto MAX_USER = 10000;
-constexpr auto MAX_NPC = 5000;
+constexpr short MAX_USER = 10000;
+constexpr short MAX_NPC = 5000;
 
 class CPlayer;
 class EXP_OVER;
@@ -22,4 +22,5 @@ namespace SharedData {
 	extern SOCKET g_listen_socket;
 	extern SOCKET g_c_socket;
 	extern EXP_OVER g_over;
+	extern bool g_map[W_WIDTH][W_HEIGHT];
 }

@@ -19,11 +19,12 @@ public:
 	void CleanUp();
 
 	void Move(short id, short x, short y);		
+	void Move(char direction);
 
-	void GetAvaterPos(short& x, short& y);
-
-	void CreatePlayer(char* name, short id, short x, short y);
+	void AddPlayer(char* name, short id, short x, short y);
 	void RemovePlayer(short id);
+
+	void SetAvatarId(short id) { m_avatarID = id; }
 
 	void GetTLPos(short& left, short& top) { left = m_left; top = m_top; }
 };

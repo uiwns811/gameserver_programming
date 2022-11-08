@@ -3,7 +3,7 @@
 
 enum S_STATE {ST_FREE, ST_ALLOC, ST_INGAME};
 
-class CNPC
+class CObject
 {
 public:
 	char m_name[NAME_SIZE];

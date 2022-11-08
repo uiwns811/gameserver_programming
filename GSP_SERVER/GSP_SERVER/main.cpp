@@ -6,27 +6,44 @@ namespace SharedData {
 	SOCKET g_listen_socket;
 	SOCKET g_c_socket;
 	EXP_OVER g_over;
+	bool g_map[W_WIDTH][W_HEIGHT];
 }
 
 void Disconnect(short c_id)
 {
-	SharedData::g_clients[c_id].m_state = ST_ALLOC;
-	closesocket(SharedData::g_clients[c_id].m_socket);
+	//SharedData::g_clients[c_id].m_s_lock.lock();
+	//unordered_set<short> vl = SharedData::g_clients[c_id].m_viewlist;
+	//SharedData::g_clients[c_id].m_s_lock.unlock();
 
-	for (auto& cl : SharedData::g_clients)
-	{
-		if (cl.m_id == c_id) continue;
-		if (ST_INGAME == cl.m_state)
-			SharedData::g_clients[cl.m_id].SendRemovePlayerPacket(c_id);
-	}
-	SharedData::g_clients[c_id].m_state = ST_FREE;
+	//for (auto& id : vl)
+	//{
+	//	auto& cl = SharedData::g_clients[id];
+	//	if (cl.m_id == c_id) continue;
+	//	if (ST_INGAME != cl.m_state) continue;
+	//	cl.SendRemovePlayerPacket(c_id);
+	//}
+	//
+	//closesocket(SharedData::g_clients[c_id].m_socket);
+	//
+	//SharedData::g_clients[c_id].m_s_lock.lock();
+	//SharedData::g_clients[c_id].m_state = ST_FREE;
+	//SharedData::g_clients[c_id].m_s_lock.unlock();
+}
+
+void Initialize()
+{
+	memset(SharedData::g_map, true, sizeof(SharedData::g_map));
 }
 
 short GetNewClientID()
 {
 	for (int i = 0; i < MAX_USER; ++i) {
-		if (ST_FREE == SharedData::g_clients[i].m_state)
+		SharedData::g_clients[i].m_s_lock.lock();
+		if (ST_FREE == SharedData::g_clients[i].m_state) {
+			SharedData::g_clients[i].m_s_lock.unlock();
 			return i;
+		}
+		SharedData::g_clients[i].m_s_lock.unlock();
 	}
 	return -1;
 }
@@ -39,10 +56,15 @@ void ProcessPacket(int c_id, char* packet)
 		CS_LOGIN_PACKET* p = reinterpret_cast<CS_LOGIN_PACKET*>(packet);
 		strncpy_s(SharedData::g_clients[c_id].m_name, p->name, NAME_SIZE);
 		SharedData::g_clients[c_id].SendLoginOkPacket();		// 여기서 DB 체크하고 LoginOk일지 LoginFail일지 판단
+
+		SharedData::g_clients[c_id].m_s_lock.lock();
 		SharedData::g_clients[c_id].m_state = ST_INGAME;
+		SharedData::g_clients[c_id].m_s_lock.unlock();
+
 		for (auto& pl : SharedData::g_clients) {
 			if (ST_INGAME != pl.m_state) continue;
 			if (pl.m_id == c_id) continue;
+			if (false == SharedData::g_clients[c_id].CanSee(pl.m_id)) continue;
 			pl.SendAddPlayerPacket(c_id);
 			SharedData::g_clients[c_id].SendAddPlayerPacket(pl.m_id);
 		}
@@ -63,43 +85,10 @@ void ProcessPacket(int c_id, char* packet)
 		SharedData::g_clients[c_id].m_y = y;
 		SharedData::g_clients[c_id].m_move_time = p->move_time;
 
-		unordered_set<int> near_list;
-		SharedData::g_clients[c_id].m_vl_lock.lock();
-		unordered_set<int> old_vlist = SharedData::g_clients[c_id].m_viewlist;
-		SharedData::g_clients[c_id].m_vl_lock.unlock();
+		// 서버에서도 충돌처리하구.. 
+		// SharedData::g_clients[c_id].SendMovePlayerPacket(c_id);
 
-		for (auto& cl : SharedData::g_clients) {
-			if (cl.m_state != ST_INGAME) continue;
-			if (cl.m_id == c_id) continue;
-			if (SharedData::g_clients[c_id].CanSee(cl.m_id))
-				near_list.insert(cl.m_id);		// 내가 상대방을 볼 수 있으면 니어리스트에 넣기
-		}
-
-		SharedData::g_clients[c_id].SendMovePlayerPacket(c_id);
-
-		for (auto& pl : near_list) {
-			auto& cpl = SharedData::g_clients[pl];
-			cpl.m_vl_lock.lock();
-			if (SharedData::g_clients[pl].m_viewlist.count(c_id)) {	
-				cpl.m_vl_lock.unlock();
-				SharedData::g_clients[pl].SendMovePlayerPacket(c_id);	
-			}
-			else {
-				cpl.m_vl_lock.unlock();
-				SharedData::g_clients[pl].SendAddPlayerPacket(c_id);			
-			}
-
-			if (old_vlist.count(pl) == 0) {
-				SharedData::g_clients[c_id].SendAddPlayerPacket(pl);
-			}
-		}
-
-		for (auto& pl : old_vlist) {
-			if (0 == near_list.count(pl)) {	
-				SharedData::g_clients[c_id].SendRemovePlayerPacket(pl);
-				SharedData::g_clients[pl].SendRemovePlayerPacket(c_id);
-			}
-		}
+		SharedData::g_clients[c_id].CheckViewList();
 	}
 		break;
 	}
@@ -120,13 +109,11 @@ void WorkerThread(HANDLE h_iocp)
 			}
 			else {
 				cout << "Disconnect (GQCS Error) in [" << client_id << "]\n";
-				Disconnect(client_id);
+				SharedData::g_clients[client_id].Disconnect();
 				if (exp_over->op_type == OP_SEND) delete exp_over;
 				continue;
 			}
 		}
-
-		CPlayer& cl = SharedData::g_clients[client_id];
 
 		switch (exp_over->op_type) {
 		case OP_ACCEPT:
@@ -134,10 +121,12 @@ void WorkerThread(HANDLE h_iocp)
 			short new_id = GetNewClientID();
 			if (new_id != -1) {
 				{
+					SharedData::g_clients[new_id].m_s_lock.lock();
 					SharedData::g_clients[new_id].m_state = ST_ALLOC;
+					SharedData::g_clients[new_id].m_s_lock.unlock();
 				}
-				SharedData::g_clients[new_id].m_x = 0;
-				SharedData::g_clients[new_id].m_y = 0;
+				SharedData::g_clients[new_id].m_x = rand() % 20;
+				SharedData::g_clients[new_id].m_y = rand() % 20;
 				SharedData::g_clients[new_id].m_id = new_id;
 				SharedData::g_clients[new_id].m_name[0] = 0;
 				SharedData::g_clients[new_id].m_prev_remain = 0;
@@ -156,7 +145,7 @@ void WorkerThread(HANDLE h_iocp)
 		break;
 		case OP_RECV:
 		{
-			int remain_data = num_bytes + cl.m_prev_remain;
+			int remain_data = num_bytes + SharedData::g_clients[client_id].m_prev_remain;
 			char* p = exp_over->sendbuf;
 			while (remain_data > 0) {
 				int packet_size = p[0];
@@ -167,11 +156,11 @@ void WorkerThread(HANDLE h_iocp)
 				}
 				else break;
 			}
-			cl.m_prev_remain = remain_data;
+			SharedData::g_clients[client_id].m_prev_remain = remain_data;
 			if (remain_data > 0) {
 				memcpy(exp_over->sendbuf, p, remain_data);
 			}
-			cl.Recv();
+			SharedData::g_clients[client_id].Recv();
 		}
 			break;
 		case OP_SEND:
@@ -204,6 +193,10 @@ int main()
 
 	h_iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0);
 	CreateIoCompletionPort(reinterpret_cast<HANDLE>(SharedData::g_listen_socket), h_iocp, 9999, 0);
+
+	// 맵 하자 섹터까지 + g_map에 flag 넣는거부터
+
+	Initialize();
 	
 	SharedData::g_c_socket = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
 	SharedData::g_over.op_type = OP_ACCEPT;

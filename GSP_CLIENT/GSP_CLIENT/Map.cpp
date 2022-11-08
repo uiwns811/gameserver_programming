@@ -20,7 +20,23 @@ void CMap::Init()
 		for (short j = 0; j < W_WIDTH; ++j) {
 			//int tileX, tileY;
 			//in >> tileX >> tileY;
-			m_tilemap[i][j] = new CTile(*tileTex, j % 13 * TILE_HALF, i % 13 * TILE_HALF, j, i);
+			switch (j % 20) {
+			case 3:
+			case 4:
+			case 5:
+			case 6:
+			case 16:
+			case 17:
+			case 18:
+				if (i % 5 == 0)
+					m_tilemap[j][i] = new CTile(*tileTex, 5 * TILE_HALF, 1 * TILE_HALF, j, i, false);
+				else 
+					m_tilemap[j][i] = new CTile(*tileTex, 1 * TILE_HALF, 1 * TILE_HALF, j, i, true);
+				break;
+			default:
+				m_tilemap[j][i] = new CTile(*tileTex, 1 * TILE_HALF, 1 * TILE_HALF, j, i, true);
+				break;
+			}
 		}
 	}
 }
@@ -44,9 +60,9 @@ void CMap::Render()
 
 			short x = (j - left) * TILE_SIZE + SCREEN_WIDTH / 2;
 			short y = (i - top) * TILE_SIZE + SCREEN_HEIGHT / 2;
-			m_tilemap[i][j]->m_sprite.setPosition(x, y);
+			m_tilemap[j][i]->m_sprite.setPosition(x, y);
 
-			DRAW(m_tilemap[i][j]->m_sprite);
+			DRAW(m_tilemap[j][i]->m_sprite);
 		} 
 	}
 }

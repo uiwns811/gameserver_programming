@@ -1,9 +1,9 @@
 #pragma once
 #include "stdafx.h"
 #include "expover.h"
-#include "NPC.h"
+#include "Object.h"
 
-class CPlayer : public CNPC
+class CPlayer : public CObject
 {
 	EXP_OVER m_recv_over;
 
@@ -11,7 +11,7 @@ public:
 	SOCKET m_socket;
 	int m_prev_remain;
 
-	std::unordered_set<int> m_viewlist;
+	std::unordered_set<short> m_viewlist;
 	mutex m_vl_lock;
 
 public:
@@ -23,10 +23,13 @@ public:
 
 	~CPlayer() {}
 
+	void Disconnect();
+
 	void SendPacket(void* packet);
 	void Recv();
 
 	bool CanSee(short to);
+	void CheckViewList();
 	
 	void SendLoginOkPacket();
 	void SendLoginFailPacket();
