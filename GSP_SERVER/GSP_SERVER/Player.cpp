@@ -1,4 +1,23 @@
 #include "Player.h"
+#include "Sector.h"
+#include "DataBase.h"
+
+void CPlayer::Initialize()
+{
+	m_s_lock.lock();
+	m_state = ST_ALLOC;
+	m_s_lock.unlock();
+
+	m_name[0] = 0;
+	m_prev_remain = 0;
+
+	m_x = rand() % 20;
+	m_y = rand() % 20;
+	m_exp = 0;
+	m_level = 0;
+	m_hp = 0;
+	SharedData::g_sector.InsertSector(m_id, m_x, m_y);
+}
 
 void CPlayer::Disconnect()
 {
@@ -19,6 +38,12 @@ void CPlayer::Disconnect()
 	m_s_lock.lock();
 	m_state = ST_FREE;
 	m_s_lock.unlock();
+
+	DB_EVENT event;
+	event.obj_id = m_id;
+	strcpy_s(event.name, m_name);
+	event.event_type = EV_DB_DISCONNECT;
+	SharedData::g_db.db_queue.push(event);
 }
 
 void CPlayer::SendPacket(void* packet)
@@ -50,13 +75,13 @@ void CPlayer::CheckViewList()
 
 	unordered_set<short> near_list;
 
-	for (auto& cl : SharedData::g_clients) {
+	for (auto& cl : SharedData::g_clients) {			// 여기를 인접한 sector로 구현
 		if (cl.m_state != ST_INGAME) continue;
 		if (cl.m_id == m_id) continue;
 		if (CanSee(cl.m_id))
 			near_list.insert(cl.m_id);
 	}
-
+	
 	for (auto& pl : near_list) {
 		auto& cpl = SharedData::g_clients[pl];
 		cpl.m_vl_lock.lock();
@@ -95,7 +120,11 @@ void CPlayer::SendLoginOkPacket()
 
 void CPlayer::SendLoginFailPacket()
 {
-
+	SC_LOGIN_FAIL_PACKET p;
+	p.id = m_id;
+	p.size = sizeof(SC_LOGIN_FAIL_PACKET);
+	p.type = SC_LOGIN_FAIL;
+	SendPacket(&p);
 }
 
 void CPlayer::SendAddPlayerPacket(short c_id)

@@ -40,7 +40,11 @@ int main()
 					break;
 				}
 				if (-1 != direction) {
-					CPlayerMgr::GetInst()->Move(direction);
+					CS_MOVE_PACKET p;
+					p.size = sizeof(CS_MOVE_PACKET);
+					p.type = CS_MOVE;
+					p.direction = direction;
+					CNetwork::GetInst()->SendPacket(&p);
 				}
 			}
 		}

@@ -1,10 +1,13 @@
-constexpr int PORT_NUM = 8111;
+constexpr int PORT_NUM = 8011;
 constexpr int BUF_SIZE = 200;
 constexpr int NAME_SIZE = 20;
 
 constexpr int W_WIDTH = 2000;
 constexpr int W_HEIGHT = 2000;
 constexpr int VIEW_RANGE = 15;
+constexpr int SECTOR_CNT = 67;
+constexpr int SECTOR_SIZE = 30;
+constexpr int SECTOR_HALF = SECTOR_SIZE / 2;
 
 // Packet ID
 constexpr char CS_LOGIN = 0;
@@ -35,6 +38,12 @@ struct SC_LOGIN_OK_PACKET {
 	char	type;
 	short	id;
 	short	x, y;
+};
+
+struct SC_LOGIN_FAIL_PACKET {
+	unsigned char size;
+	char	type;
+	short	id;
 };
 
 struct SC_ADD_PLAYER_PACKET {

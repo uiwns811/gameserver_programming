@@ -23,6 +23,8 @@ public:
 
 	~CPlayer() {}
 
+	void Initialize();
+
 	void Disconnect();
 
 	void SendPacket(void* packet);

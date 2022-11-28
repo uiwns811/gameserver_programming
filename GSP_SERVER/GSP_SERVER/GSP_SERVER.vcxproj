@@ -128,15 +128,19 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\..\protocol.h" />
+    <ClInclude Include="DataBase.h" />
     <ClInclude Include="expover.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="Player.h" />
+    <ClInclude Include="Sector.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DataBase.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="Player.cpp" />
+    <ClCompile Include="Sector.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

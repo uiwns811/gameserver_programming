@@ -6,7 +6,11 @@
 #include <array>
 #include <vector>
 #include <mutex>
+#include <string>
+#include <algorithm>
 #include <unordered_set>
+#include <concurrent_queue.h>
+#include <sqlext.h> 
 #include "..\..\protocol.h"
 
 #pragma comment(lib, "WS2_32.lib")
@@ -16,11 +20,16 @@ constexpr short MAX_USER = 10000;
 constexpr short MAX_NPC = 5000;
 
 class CPlayer;
+class CSector;
 class EXP_OVER;
+class CDataBase;
 namespace SharedData {
 	extern array<CPlayer, MAX_USER + MAX_NPC> g_clients;
 	extern SOCKET g_listen_socket;
 	extern SOCKET g_c_socket;
 	extern EXP_OVER g_over;
 	extern bool g_map[W_WIDTH][W_HEIGHT];
+	extern HANDLE g_iocp;
+	extern CSector g_sector;
+	extern CDataBase g_db;
 }

@@ -14,6 +14,7 @@ public:
 
 	void SetWindow(sf::RenderWindow& window) { m_window = &window; }
 	void Render(sf::Drawable& t) { m_window->draw(t); }
+	void CloseWindow() { m_window->close(); }
 
 private:
 	sf::RenderWindow* m_window;

@@ -1,6 +1,7 @@
 #include "Network.h"
 #include "PlayerMgr.h"
 #include "Map.h"
+#include "GameFramework.h"
 
 CNetwork::CNetwork() : m_hostID(-1)
 {
@@ -23,15 +24,14 @@ void CNetwork::Init()
 		while (true);
 	}
 
-	//cout << "ID 입력 : ";
-	//cin >> m_hostName;
-	const char* name = "sumin";
-	strncpy_s(m_hostName, name, NAME_SIZE);
+	cout << "ID 입력 : ";
+	cin >> m_hostName;
 
 	// 로그인 패킷 전송
 	CS_LOGIN_PACKET p;
 	p.size = sizeof(CS_LOGIN_PACKET);
 	p.type = CS_LOGIN;
+	strcpy_s(p.name, m_hostName);
 	SendPacket(&p);
 }
 
@@ -97,6 +97,8 @@ void CNetwork::ProcessPacket(char* packet)
 		break;
 	}
 	case SC_LOGIN_FAIL:
+		cout << "Login Fail!!" << endl;
+		CGameFramework::GetInst()->CloseWindow();
 		break;
 	case SC_ADD_PLAYER:
 	{

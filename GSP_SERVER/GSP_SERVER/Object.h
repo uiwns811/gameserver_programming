@@ -15,7 +15,7 @@ public:
 	short m_y;
 
 	mutex m_s_lock;
-	S_STATE m_state;
+	atomic<S_STATE> m_state;
 
 	unsigned m_move_time;
 };
