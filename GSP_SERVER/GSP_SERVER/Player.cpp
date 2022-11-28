@@ -16,7 +16,6 @@ void CPlayer::Initialize()
 	m_exp = 0;
 	m_level = 0;
 	m_hp = 0;
-	SharedData::g_sector.InsertSector(m_id, m_x, m_y);
 }
 
 void CPlayer::Disconnect()
@@ -75,12 +74,13 @@ void CPlayer::CheckViewList()
 
 	unordered_set<short> near_list;
 
-	for (auto& cl : SharedData::g_clients) {			// 여기를 인접한 sector로 구현
-		if (cl.m_state != ST_INGAME) continue;
-		if (cl.m_id == m_id) continue;
-		if (CanSee(cl.m_id))
-			near_list.insert(cl.m_id);
-	}
+	//for (auto& cl : SharedData::g_clients) {			// 여기를 인접한 sector로 구현
+	//	if (cl.m_state != ST_INGAME) continue;
+	//	if (cl.m_id == m_id) continue;
+	//	if (CanSee(cl.m_id))
+	//		near_list.insert(cl.m_id);
+	//}
+	SharedData::g_sector.CreateNearList(near_list, m_id, m_x, m_y);
 	
 	for (auto& pl : near_list) {
 		auto& cpl = SharedData::g_clients[pl];

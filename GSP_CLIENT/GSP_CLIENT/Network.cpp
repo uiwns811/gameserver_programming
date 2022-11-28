@@ -90,8 +90,8 @@ void CNetwork::ProcessPacket(char* packet)
 		short id = my_packet->id;
 		short x = my_packet->x;
 		short y = my_packet->y;
+		CPlayerMgr::GetInst()->SetAvatar(id);
 		CPlayerMgr::GetInst()->AddPlayer(m_hostName, id, x, y);
-		CPlayerMgr::GetInst()->SetAvatarId(id);
 		m_hostID = id;
 		CMap::GetInst()->SetRender(true);
 		break;

@@ -7,11 +7,11 @@ private:
 	bool m_bActive;
 	char m_name[NAME_SIZE];
 	short m_id;
+	short m_x;
+	short m_y;
 	short m_exp;
 	short m_level;
 	short m_hp;
-	short m_x;
-	short m_y;
 
 	unsigned m_move_time;
 
@@ -58,6 +58,7 @@ public:
 		m_hp = 0;
 	}
 	
+	void SetTexture(sf::Texture& t, int left, int top) { m_sprite.setTexture(t); m_sprite.setTextureRect(sf::IntRect(left, top, TILE_SIZE, TILE_SIZE)); }
 	void SetActive(bool bTrue) { m_bActive = bTrue; }
 	void SetName(char* name) { strncpy_s(m_name, name, NAME_SIZE); }
 	void SetId(short id) { m_id = id; }

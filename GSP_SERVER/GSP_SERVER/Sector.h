@@ -14,4 +14,6 @@ public:
 	void RemoveSector(short id, short x, short y);
 
 	void FindSector(short id, short x, short y);
+
+	void CreateNearList(std::unordered_set<short>& nearlist, short id, short x, short y);
 };

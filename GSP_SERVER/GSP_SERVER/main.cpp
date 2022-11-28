@@ -54,6 +54,9 @@ short GetNewClientID()
 
 void do_timer()
 {
+	// 1초마다 해야 하는 것들 -> timer를 통해 구현. (매번 루프돌면서 모든 g_clients에 대해 검사하는게 아니라 g_clients에서 괜찮은 애들만 Update 실행해주면 되는거 아닐까?
+
+
 	while (true) {
 		DB_EVENT event;
 		event.obj_id = 0;
@@ -113,6 +116,8 @@ void ProcessPacket(int c_id, char* packet)
 		CS_MOVE_PACKET* p = reinterpret_cast<CS_MOVE_PACKET*>(packet);
 		short x = SharedData::g_clients[c_id].m_x;
 		short y = SharedData::g_clients[c_id].m_y;
+		short oldX = x;
+		short oldY = y;
 		switch (p->direction) {
 		case 0: if (y > 0) y--; break;
 		case 1: if (y < W_HEIGHT - 1) y++; break;
@@ -126,9 +131,10 @@ void ProcessPacket(int c_id, char* packet)
 			SharedData::g_clients[c_id].m_y = y;
 			SharedData::g_clients[c_id].m_move_time = p->move_time;
 
+			SharedData::g_sector.UpdateSector(c_id, x, y, oldX, oldY);
 			SharedData::g_clients[c_id].CheckViewList();
+			SharedData::g_clients[c_id].SendMovePlayerPacket(c_id);
 		}
-		SharedData::g_clients[c_id].SendMovePlayerPacket(c_id);
 		break;
 	}
 }
@@ -200,15 +206,15 @@ void WorkerThread()
 		case OP_DB_LOGIN_WITH_INFO:
 		{
 			CObject* user_info = reinterpret_cast<CObject*>(exp_over->sendbuf);
-			{
-				lock_guard<mutex> ll{ SharedData::g_clients[client_id].m_s_lock };
-				SharedData::g_clients[client_id].m_x = user_info->m_x;
-				SharedData::g_clients[client_id].m_y = user_info->m_y;
-				SharedData::g_clients[client_id].m_exp = user_info->m_exp;
-				SharedData::g_clients[client_id].m_level = user_info->m_level;
-				SharedData::g_clients[client_id].m_hp = user_info->m_hp;
-				SharedData::g_clients[client_id].m_state = ST_INGAME;
-			}
+			SharedData::g_clients[client_id].m_x = user_info->m_x;
+			SharedData::g_clients[client_id].m_y = user_info->m_y;
+			SharedData::g_clients[client_id].m_exp = user_info->m_exp;
+			SharedData::g_clients[client_id].m_level = user_info->m_level;
+			SharedData::g_clients[client_id].m_hp = user_info->m_hp;
+			SharedData::g_clients[client_id].m_s_lock.lock();
+			SharedData::g_clients[client_id].m_state = ST_INGAME;
+			SharedData::g_clients[client_id].m_s_lock.unlock();
+			SharedData::g_sector.InsertSector(client_id, SharedData::g_clients[client_id].m_x, SharedData::g_clients[client_id].m_y);
 			SharedData::g_clients[client_id].SendLoginOkPacket();
 			for (auto& pl : SharedData::g_clients) {
 				{
@@ -225,6 +231,7 @@ void WorkerThread()
 		break;
 		case OP_DB_LOGIN_NO_INFO:
 		{
+			SharedData::g_sector.InsertSector(client_id, SharedData::g_clients[client_id].m_x, SharedData::g_clients[client_id].m_y);
 			SharedData::g_clients[client_id].SendLoginOkPacket();
 			for (auto& pl : SharedData::g_clients) {
 				{

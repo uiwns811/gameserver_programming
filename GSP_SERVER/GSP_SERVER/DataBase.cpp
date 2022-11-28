@@ -105,7 +105,7 @@ void CDataBase::DB_CheckLogin(DB_EVENT event)
 void CDataBase::DB_LoginOk(DB_EVENT event)
 {
 	CObject user_info;
-	SQLLEN cbName = 0, cb_x = 0, cb_y = 0, cb_exp = 0, cb_level = 0, cb_hp = 0;
+	SQLLEN cb_x = 0, cb_y = 0, cb_exp = 0, cb_level = 0, cb_hp = 0;
 
 	wstring player_name(event.name, &event.name[NAME_SIZE]);
 
@@ -114,12 +114,11 @@ void CDataBase::DB_LoginOk(DB_EVENT event)
 	retcode = SQLExecDirect(hstmt, (SQLWCHAR*)(query.c_str()), SQL_NTS);
 	if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
 
-		retcode = SQLBindCol(hstmt, 1, SQL_C_WCHAR, user_info.m_name, NAME_SIZE, &cbName);
-		retcode = SQLBindCol(hstmt, 2, SQL_C_LONG, &user_info.m_x, 100, &cb_x);
-		retcode = SQLBindCol(hstmt, 3, SQL_C_LONG, &user_info.m_y, 100, &cb_y);
-		retcode = SQLBindCol(hstmt, 2, SQL_C_LONG, &user_info.m_exp, 100, &cb_exp);
-		retcode = SQLBindCol(hstmt, 3, SQL_C_LONG, &user_info.m_level, 100, &cb_level);
-		retcode = SQLBindCol(hstmt, 2, SQL_C_LONG, &user_info.m_hp, 100, &cb_hp);
+		retcode = SQLBindCol(hstmt, 1, SQL_C_LONG, &user_info.m_x, 100, &cb_x);
+		retcode = SQLBindCol(hstmt, 2, SQL_C_LONG, &user_info.m_y, 100, &cb_y);
+		retcode = SQLBindCol(hstmt, 3, SQL_C_LONG, &user_info.m_exp, 100, &cb_exp);
+		retcode = SQLBindCol(hstmt, 4, SQL_C_LONG, &user_info.m_level, 100, &cb_level);
+		retcode = SQLBindCol(hstmt, 5, SQL_C_LONG, &user_info.m_hp, 100, &cb_hp);
 
 		retcode = SQLFetch(hstmt);
 
@@ -136,6 +135,32 @@ void CDataBase::DB_LoginOk(DB_EVENT event)
 	}
 	else {
 		show_error(hdbc, SQL_HANDLE_DBC, retcode);
+	}
+
+	SQLCancel(hstmt);
+}
+
+void CDataBase::DB_InsertUserData(DB_EVENT event)
+{
+	string name(event.name);
+	short x = SharedData::g_clients[event.obj_id].m_x;
+	short y = SharedData::g_clients[event.obj_id].m_y;
+	short exp = SharedData::g_clients[event.obj_id].m_exp;
+	short level = SharedData::g_clients[event.obj_id].m_level;
+	short hp = SharedData::g_clients[event.obj_id].m_hp;
+
+	string query_s = "EXEC insert_data " + name + ", " + to_string(x) + ", " + to_string(y) + ", " + to_string(exp) + ", " + to_string(level) + ", " + to_string(hp);
+	wstring query(query_s.begin(), query_s.end());
+
+	retcode = SQLExecDirect(hstmt, (SQLWCHAR*)(query.c_str()), SQL_NTS);
+	if (retcode == SQL_ERROR || retcode == SQL_SUCCESS_WITH_INFO)
+		show_error(hdbc, SQL_HANDLE_DBC, retcode);
+
+	if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+		EXP_OVER* over = new EXP_OVER;
+		over->op_type = OP_DB_LOGIN_NO_INFO;
+
+		PostQueuedCompletionStatus(SharedData::g_iocp, 1, event.obj_id, &over->over);
 	}
 
 	SQLCancel(hstmt);
@@ -180,32 +205,6 @@ void CDataBase::DB_UpdateUserData(DB_EVENT event)		// disconnectÇßÀ» ¶§ Æ¯Á¤ °´Ã
 	retcode = SQLExecDirect(hstmt, (SQLWCHAR*)(query.c_str()), SQL_NTS);
 	if (retcode == SQL_ERROR || retcode == SQL_SUCCESS_WITH_INFO)
 		show_error(hdbc, SQL_HANDLE_DBC, retcode);
-
-	SQLCancel(hstmt);
-}
-
-void CDataBase::DB_InsertUserData(DB_EVENT event)
-{
-	string name(event.name);
-	short x = SharedData::g_clients[event.obj_id].m_x;
-	short y = SharedData::g_clients[event.obj_id].m_y;
-	short exp = SharedData::g_clients[event.obj_id].m_exp;
-	short level = SharedData::g_clients[event.obj_id].m_level;
-	short hp = SharedData::g_clients[event.obj_id].m_hp;
-
-	string query_s = "EXEC insert_data " + name + ", " + to_string(x) + ", " + to_string(y) + ", " + to_string(exp) + ", " + to_string(level) + ", " + to_string(hp);
-	wstring query(query_s.begin(), query_s.end());
-
-	retcode = SQLExecDirect(hstmt, (SQLWCHAR*)(query.c_str()), SQL_NTS);
-	if (retcode == SQL_ERROR || retcode == SQL_SUCCESS_WITH_INFO)
-		show_error(hdbc, SQL_HANDLE_DBC, retcode);
-
-	if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
-		EXP_OVER* over = new EXP_OVER;
-		over->op_type = OP_DB_LOGIN_NO_INFO;
-
-		PostQueuedCompletionStatus(SharedData::g_iocp, 1, event.obj_id, &over->over);
-	}
 
 	SQLCancel(hstmt);
 }

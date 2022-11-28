@@ -29,9 +29,9 @@ public:
 
 	void DB_CheckLogin(DB_EVENT event);
 	void DB_LoginOk(DB_EVENT event);
+	void DB_InsertUserData(DB_EVENT event);
 	void DB_UpdateClientsData();
 	void DB_UpdateUserData(DB_EVENT event);
-	void DB_InsertUserData(DB_EVENT event);
 
 	void show_error(SQLHANDLE hHandle, SQLSMALLINT hType, RETCODE RetCode);
 };

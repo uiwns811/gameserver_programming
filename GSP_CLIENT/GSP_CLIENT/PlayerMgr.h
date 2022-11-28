@@ -9,7 +9,9 @@ private:
 	std::unordered_map<int, CPlayer*> players;
 	short m_avatarID = -1;
 
-	sf::Texture* playerTex;
+	sf::Texture* playerTex1;
+	sf::Texture* playerTex2;
+	sf::Texture* playerTex3;
 	short m_left = 0;
 	short m_top = 0;
 
@@ -24,7 +26,7 @@ public:
 	void AddPlayer(char* name, short id, short x, short y);
 	void RemovePlayer(short id);
 
-	void SetAvatarId(short id) { m_avatarID = id; }
+	void SetAvatar(short id);
 
 	void GetTLPos(short& left, short& top) { left = m_left; top = m_top; }
 };
