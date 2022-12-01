@@ -42,13 +42,13 @@ void CDataBase::DB_Thread()
 		if (true == db_queue.try_pop(event)) {
 
 			switch (event.event_type) {
-			case EV_DB_LOGIN:
+			case DB_LOGIN:
 				DB_CheckLogin(event);
 				break;
-			case EV_DB_UPDATE:
-				DB_UpdateClientsData();
+			case DB_UPDATE:
+				DB_SaveData();
 				break;
-			case EV_DB_DISCONNECT:
+			case DB_DISCONNECT:
 				DB_UpdateUserData(event);
 				break;
 			}
@@ -58,7 +58,7 @@ void CDataBase::DB_Thread()
 
 void CDataBase::DB_CleanUp()
 {
-	DB_UpdateClientsData();
+	DB_SaveData();
 
 	SQLCancel(hstmt);
 	SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
@@ -166,8 +166,9 @@ void CDataBase::DB_InsertUserData(DB_EVENT event)
 	SQLCancel(hstmt);
 }
 
-void CDataBase::DB_UpdateClientsData()		// clients 전체 업데이트
+void CDataBase::DB_SaveData()		// clients 전체 업데이트
 {
+	cout << "DB Save" << endl;
 	for (auto& cl : SharedData::g_clients) {
 		cl.m_s_lock.lock();
 		if (cl.m_state != ST_INGAME) {
@@ -227,4 +228,21 @@ void CDataBase::show_error(SQLHANDLE hHandle, SQLSMALLINT hType, RETCODE RetCode
 		}
 	}
 
+}
+
+void CDataBase::Enqueue(int _obj_id, char* _name, DB_TYPE _type)
+{
+	DB_EVENT event;
+	event.obj_id = _obj_id;
+	strncpy(event.name, _name, NAME_SIZE);
+	event.event_type = _type;
+	db_queue.push(event);
+}
+
+void CDataBase::Enqueue(int _obj_id, DB_TYPE _type)
+{
+	DB_EVENT event;
+	event.obj_id = _obj_id;
+	event.event_type = _type;
+	db_queue.push(event);
 }

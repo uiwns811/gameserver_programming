@@ -16,6 +16,7 @@ public:
 
 	mutex m_s_lock;
 	atomic<S_STATE> m_state;
+	atomic_bool m_is_active;
 
 	unsigned m_move_time;
 };

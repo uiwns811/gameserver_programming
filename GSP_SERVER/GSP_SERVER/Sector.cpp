@@ -38,44 +38,13 @@ void CSector::RemoveSector(short id, short x, short y)
 	}
 }
 
-void CSector::FindSector(short id, short x, short y)
+void CSector::FindNear(std::unordered_set<short>& nearlist, int id, int xIdx, int yIdx)
 {
-	// 0 3
-	// 1 2
-	// 로 구분해서 nearlist 만들 때 검색할 섹터 지정하기
-
-	short xIdx = x / SECTOR_SIZE;			// sector의 인덱스
-	short yIdx = y / SECTOR_SIZE;
-
-	// 아래 4가지 경우에 따라 상하좌우 4개에 있는 오브젝트들을 nearlist에 넣자
-
-	if (x < xIdx * SECTOR_SIZE + SECTOR_HALF) {
-		if (y < yIdx * SECTOR_SIZE + SECTOR_HALF) {
-			// m_sectorObjList[xIdx-1][yIdx-1]
-			// m_sectorObjList[xIdx][yIdx-1]
-			// m_sectorObjList[xIdx-1][yIdx]
-			// m_sectorObjList[xIdx][yIdx]
-		}
-		else {									
-			// m_sectorObjList[xIdx-1][yIdx]
-			// m_sectorObjList[xIdx][yIdx]
-			// m_sectorObjList[xIdx-1][yIdx+1]
-			// m_sectorObjList[xIdx][yIdx+1]
-		}
-	}
-	else {
-		if (y < yIdx * SECTOR_SIZE + SECTOR_HALF) {
-			// m_sectorObjList[xIdx][yIdx]
-			// m_sectorObjList[xIdx+1][yIdx]
-			// m_sectorObjList[xIdx][yIdx+1]
-			// m_sectorObjList[xIdx+1][yIdx+1]
-		}
-		else {
-			// m_sectorObjList[xIdx][yIdx-1]
-			// m_sectorObjList[xIdx+1][yIdx-1]
-			// m_sectorObjList[xIdx][yIdx]
-			// m_sectorObjList[xIdx+1][yIdx]
-		}
+	for (auto& cl : m_sectorObjList[xIdx][yIdx]) {
+		if (SharedData::g_clients[cl].m_state != ST_INGAME) continue;
+		if (SharedData::g_clients[cl].m_id == id) continue;
+		if (SharedData::g_clients[id].CanSee(cl))
+			nearlist.insert(cl);
 	}
 }
 
@@ -91,144 +60,30 @@ void CSector::CreateNearList(std::unordered_set<short>& nearlist, short id, shor
 
 	if (x < xIdx * SECTOR_SIZE + SECTOR_HALF) {
 		if (y < yIdx * SECTOR_SIZE + SECTOR_HALF) {
-			for (auto& cl : m_sectorObjList[xIdx - 1][yIdx - 1]) {			// 여기를 인접한 sector로 구현
-				if (SharedData::g_clients[cl].m_state != ST_INGAME) continue;
-				if (SharedData::g_clients[cl].m_id == id) continue;
-				if (SharedData::g_clients[id].CanSee(cl))
-					nearlist.insert(cl);
-			}
-			for (auto& cl : m_sectorObjList[xIdx][yIdx - 1]) {			// 여기를 인접한 sector로 구현
-				if (SharedData::g_clients[cl].m_state != ST_INGAME) continue;
-				if (SharedData::g_clients[cl].m_id == id) continue;
-				if (SharedData::g_clients[id].CanSee(cl))
-					nearlist.insert(cl);
-			}
-			for (auto& cl : m_sectorObjList[xIdx - 1][yIdx]) {			// 여기를 인접한 sector로 구현
-				if (SharedData::g_clients[cl].m_state != ST_INGAME) continue;
-				if (SharedData::g_clients[cl].m_id == id) continue;
-				if (SharedData::g_clients[id].CanSee(cl))
-					nearlist.insert(cl);
-			}
-			for (auto& cl : m_sectorObjList[xIdx][yIdx]) {			// 여기를 인접한 sector로 구현
-				if (SharedData::g_clients[cl].m_state != ST_INGAME) continue;
-				if (SharedData::g_clients[cl].m_id == id) continue;
-				if (SharedData::g_clients[id].CanSee(cl))
-					nearlist.insert(cl);
-			}
-
-			//nearlist.insert(m_sectorObjList[xIdx - 1][yIdx - 1].begin(), m_sectorObjList[xIdx - 1][yIdx - 1].end());
-			//nearlist.insert(m_sectorObjList[xIdx][yIdx - 1].begin(), m_sectorObjList[xIdx][yIdx - 1].end());
-			//nearlist.insert(m_sectorObjList[xIdx - 1][yIdx].begin(), m_sectorObjList[xIdx - 1][yIdx].end());
-			//nearlist.insert(m_sectorObjList[xIdx][yIdx].begin(), m_sectorObjList[xIdx][yIdx].end());
-			// m_sectorObjList[xIdx-1][yIdx-1]
-			// m_sectorObjList[xIdx][yIdx-1]
-			// m_sectorObjList[xIdx-1][yIdx]
-			// m_sectorObjList[xIdx][yIdx]
+			FindNear(nearlist, id, xIdx - 1, yIdx - 1);
+			FindNear(nearlist, id, xIdx, yIdx - 1);
+			FindNear(nearlist, id, xIdx - 1, yIdx);
+			FindNear(nearlist, id, xIdx, yIdx);
 		}
 		else {
-			for (auto& cl : m_sectorObjList[xIdx - 1][yIdx]) {			// 여기를 인접한 sector로 구현
-				if (SharedData::g_clients[cl].m_state != ST_INGAME) continue;
-				if (SharedData::g_clients[cl].m_id == id) continue;
-				if (SharedData::g_clients[id].CanSee(cl))
-					nearlist.insert(cl);
-			}
-			for (auto& cl : m_sectorObjList[xIdx][yIdx]) {			// 여기를 인접한 sector로 구현
-				if (SharedData::g_clients[cl].m_state != ST_INGAME) continue;
-				if (SharedData::g_clients[cl].m_id == id) continue;
-				if (SharedData::g_clients[id].CanSee(cl))
-					nearlist.insert(cl);
-			}
-			for (auto& cl : m_sectorObjList[xIdx - 1][yIdx + 1]) {			// 여기를 인접한 sector로 구현
-				if (SharedData::g_clients[cl].m_state != ST_INGAME) continue;
-				if (SharedData::g_clients[cl].m_id == id) continue;
-				if (SharedData::g_clients[id].CanSee(cl))
-					nearlist.insert(cl);
-			}
-			for (auto& cl : m_sectorObjList[xIdx][yIdx + 1]) {			// 여기를 인접한 sector로 구현
-				if (SharedData::g_clients[cl].m_state != ST_INGAME) continue;
-				if (SharedData::g_clients[cl].m_id == id) continue;
-				if (SharedData::g_clients[id].CanSee(cl))
-					nearlist.insert(cl);
-			}
-			//nearlist.insert(m_sectorObjList[xIdx - 1][yIdx].begin(), m_sectorObjList[xIdx - 1][yIdx].end());
-			//nearlist.insert(m_sectorObjList[xIdx][yIdx].begin(), m_sectorObjList[xIdx][yIdx].end());
-			//nearlist.insert(m_sectorObjList[xIdx - 1][yIdx + 1].begin(), m_sectorObjList[xIdx - 1][yIdx + 1].end());
-			//nearlist.insert(m_sectorObjList[xIdx][yIdx + 1].begin(), m_sectorObjList[xIdx][yIdx + 1].end());
-			// m_sectorObjList[xIdx-1][yIdx]
-			// m_sectorObjList[xIdx][yIdx]
-			// m_sectorObjList[xIdx-1][yIdx+1]
-			// m_sectorObjList[xIdx][yIdx+1]
+			FindNear(nearlist, id, xIdx - 1, yIdx);
+			FindNear(nearlist, id, xIdx, yIdx);
+			FindNear(nearlist, id, xIdx - 1, yIdx + 1);
+			FindNear(nearlist, id, xIdx, yIdx + 1);
 		}
 	}
 	else {
 		if (y < yIdx * SECTOR_SIZE + SECTOR_HALF) {
-			for (auto& cl : m_sectorObjList[xIdx][yIdx]) {			// 여기를 인접한 sector로 구현
-				if (SharedData::g_clients[cl].m_state != ST_INGAME) continue;
-				if (SharedData::g_clients[cl].m_id == id) continue;
-				if (SharedData::g_clients[id].CanSee(cl))
-					nearlist.insert(cl);
-			}
-			for (auto& cl : m_sectorObjList[xIdx + 1][yIdx]) {			// 여기를 인접한 sector로 구현
-				if (SharedData::g_clients[cl].m_state != ST_INGAME) continue;
-				if (SharedData::g_clients[cl].m_id == id) continue;
-				if (SharedData::g_clients[id].CanSee(cl))
-					nearlist.insert(cl);
-			}
-			for (auto& cl : m_sectorObjList[xIdx][yIdx + 1]) {			// 여기를 인접한 sector로 구현
-				if (SharedData::g_clients[cl].m_state != ST_INGAME) continue;
-				if (SharedData::g_clients[cl].m_id == id) continue;
-				if (SharedData::g_clients[id].CanSee(cl))
-					nearlist.insert(cl);
-			}
-			for (auto& cl : m_sectorObjList[xIdx + 1][yIdx + 1]) {			// 여기를 인접한 sector로 구현
-				if (SharedData::g_clients[cl].m_state != ST_INGAME) continue;
-				if (SharedData::g_clients[cl].m_id == id) continue;
-				if (SharedData::g_clients[id].CanSee(cl))
-					nearlist.insert(cl);
-			}
-			//nearlist.insert(m_sectorObjList[xIdx][yIdx].begin(), m_sectorObjList[xIdx][yIdx].end());
-			//nearlist.insert(m_sectorObjList[xIdx + 1][yIdx].begin(), m_sectorObjList[xIdx + 1][yIdx].end());
-			//nearlist.insert(m_sectorObjList[xIdx][yIdx + 1].begin(), m_sectorObjList[xIdx][yIdx + 1].end());
-			//nearlist.insert(m_sectorObjList[xIdx + 1][yIdx + 1].begin(), m_sectorObjList[xIdx + 1][yIdx + 1].end());
-			// m_sectorObjList[xIdx][yIdx]
-			// m_sectorObjList[xIdx+1][yIdx]
-			// m_sectorObjList[xIdx][yIdx+1]
-			// m_sectorObjList[xIdx+1][yIdx+1]
+			FindNear(nearlist, id, xIdx, yIdx);
+			FindNear(nearlist, id, xIdx + 1, yIdx);
+			FindNear(nearlist, id, xIdx, yIdx + 1);
+			FindNear(nearlist, id, xIdx + 1, yIdx + 1);
 		}
 		else {
-			for (auto& cl : m_sectorObjList[xIdx][yIdx - 1]) {			// 여기를 인접한 sector로 구현
-				if (SharedData::g_clients[cl].m_state != ST_INGAME) continue;
-				if (SharedData::g_clients[cl].m_id == id) continue;
-				if (SharedData::g_clients[id].CanSee(cl))
-					nearlist.insert(cl);
-			}
-			for (auto& cl : m_sectorObjList[xIdx + 1][yIdx - 1]) {			// 여기를 인접한 sector로 구현
-				if (SharedData::g_clients[cl].m_state != ST_INGAME) continue;
-				if (SharedData::g_clients[cl].m_id == id) continue;
-				if (SharedData::g_clients[id].CanSee(cl))
-					nearlist.insert(cl);
-			}
-			for (auto& cl : m_sectorObjList[xIdx][yIdx]) {			// 여기를 인접한 sector로 구현
-				if (SharedData::g_clients[cl].m_state != ST_INGAME) continue;
-				if (SharedData::g_clients[cl].m_id == id) continue;
-				if (SharedData::g_clients[id].CanSee(cl))
-					nearlist.insert(cl);
-			}
-			for (auto& cl : m_sectorObjList[xIdx + 1][yIdx]) {			// 여기를 인접한 sector로 구현
-				if (SharedData::g_clients[cl].m_state != ST_INGAME) continue;
-				if (SharedData::g_clients[cl].m_id == id) continue;
-				if (SharedData::g_clients[id].CanSee(cl))
-					nearlist.insert(cl);
-			}
-
-			//nearlist.insert(m_sectorObjList[xIdx][yIdx - 1].begin(), m_sectorObjList[xIdx][yIdx - 1].end());
-			//nearlist.insert(m_sectorObjList[xIdx + 1][yIdx - 1].begin(), m_sectorObjList[xIdx + 1][yIdx - 1].end());
-			//nearlist.insert(m_sectorObjList[xIdx][yIdx].begin(), m_sectorObjList[xIdx][yIdx].end());
-			//nearlist.insert(m_sectorObjList[xIdx + 1][yIdx].begin(), m_sectorObjList[xIdx + 1][yIdx].end());
-			// m_sectorObjList[xIdx][yIdx-1]
-			// m_sectorObjList[xIdx+1][yIdx-1]
-			// m_sectorObjList[xIdx][yIdx]
-			// m_sectorObjList[xIdx+1][yIdx]
+			FindNear(nearlist, id, xIdx, yIdx - 1);
+			FindNear(nearlist, id, xIdx + 1, yIdx - 1);
+			FindNear(nearlist, id, xIdx, yIdx);
+			FindNear(nearlist, id, xIdx + 1, yIdx);
 		}
 	}
 }

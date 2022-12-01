@@ -2,6 +2,7 @@
 #include "Player.h"
 #include "Sector.h"
 #include "DataBase.h"
+#include "Timer.h"
 
 namespace SharedData {
 	array<CPlayer, MAX_USER + MAX_NPC> g_clients;
@@ -12,6 +13,7 @@ namespace SharedData {
 	HANDLE g_iocp;
 	CSector g_sector;
 	CDataBase g_db;
+	concurrency::concurrent_priority_queue<TIMER_EVENT> timer_queue;
 }
 
 void Initialize()
@@ -52,18 +54,14 @@ short GetNewClientID()
 	return -1;
 }
 
-void do_timer()
+
+void do_tick()
 {
-	// 1초마다 해야 하는 것들 -> timer를 통해 구현. (매번 루프돌면서 모든 g_clients에 대해 검사하는게 아니라 g_clients에서 괜찮은 애들만 Update 실행해주면 되는거 아닐까?
-
-
 	while (true) {
-		DB_EVENT event;
-		event.obj_id = 0;
-		event.event_type = EV_DB_UPDATE;
-		SharedData::g_db.db_queue.push(event);
-
-		this_thread::sleep_for(30s);
+		for (auto& c : SharedData::g_clients) {
+			c.Tick();
+		}
+		this_thread::sleep_for(1s);
 	}
 }
 
@@ -89,11 +87,12 @@ void ProcessPacket(int c_id, char* packet)
 		// DB에 insert, 초기값으로 넣어주기
 		strncpy_s(SharedData::g_clients[c_id].m_name, p->name, NAME_SIZE);
 
-		DB_EVENT event;
-		event.obj_id = c_id;
-		strcpy_s(event.name, p->name);
-		event.event_type = EV_DB_LOGIN;
-		SharedData::g_db.db_queue.push(event);
+		SharedData::g_db.Enqueue(c_id, p->name, DB_LOGIN);
+
+		SharedData::g_db.Enqueue(0, DB_UPDATE);
+
+		TIMER_EVENT ev{ c_id, chrono::system_clock::now() + 60s, EV_DB_UPDATE, 0 };
+		SharedData::timer_queue.push(ev);
 
 
 
@@ -213,6 +212,7 @@ void WorkerThread()
 			SharedData::g_clients[client_id].m_hp = user_info->m_hp;
 			SharedData::g_clients[client_id].m_s_lock.lock();
 			SharedData::g_clients[client_id].m_state = ST_INGAME;
+			SharedData::g_clients[client_id].m_is_active = true;
 			SharedData::g_clients[client_id].m_s_lock.unlock();
 			SharedData::g_sector.InsertSector(client_id, SharedData::g_clients[client_id].m_x, SharedData::g_clients[client_id].m_y);
 			SharedData::g_clients[client_id].SendLoginOkPacket();
@@ -245,6 +245,12 @@ void WorkerThread()
 			}
 		}
 		break;
+		case OP_DB_UPDATE:
+			SharedData::g_db.Enqueue(0, DB_UPDATE);
+
+			TIMER_EVENT ev{ key, chrono::system_clock::now() + 30s, EV_DB_UPDATE, 0 };			// 30초마다 저장
+			SharedData::timer_queue.push(ev);
+			break;
 		}
 	}
 }
@@ -282,15 +288,17 @@ int main()
 
 	vector <thread> worker_threads;
 	int num_threads = std::thread::hardware_concurrency();
-	for (int i = 0; i < num_threads - 2; ++i)
+	for (int i = 0; i < num_threads - 3; ++i)
 		worker_threads.emplace_back(WorkerThread);
 	thread db_thread([&]() {SharedData::g_db.DB_Thread(); });
 	thread timer_thread{ do_timer };
+	thread tick_thread{ do_tick };
 
+	tick_thread.join();
+	timer_thread.join();
+	db_thread.join();
 	for (auto& th : worker_threads)
 		th.join();
-	db_thread.join();
-	timer_thread.join();
 
 	closesocket(SharedData::g_listen_socket);
 	WSACleanup();

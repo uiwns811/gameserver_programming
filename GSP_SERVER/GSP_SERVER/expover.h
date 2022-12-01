@@ -1,8 +1,6 @@
 #pragma once
 #include "stdafx.h"
 
-enum COMP_TYPE {OP_ACCEPT, OP_RECV, OP_SEND, OP_DB_LOGIN_WITH_INFO, OP_DB_LOGIN_NO_INFO };
-
 class EXP_OVER
 {
 public:

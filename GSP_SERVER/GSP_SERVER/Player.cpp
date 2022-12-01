@@ -13,9 +13,11 @@ void CPlayer::Initialize()
 
 	m_x = rand() % 20;
 	m_y = rand() % 20;
-	m_exp = 0;
-	m_level = 0;
-	m_hp = 0;
+	m_exp = START_EXP;
+	m_level = 1;
+	m_hp = MAX_HP;
+	m_requiredExp = START_EXP * 2;
+	m_is_active = false;
 }
 
 void CPlayer::Disconnect()
@@ -38,11 +40,53 @@ void CPlayer::Disconnect()
 	m_state = ST_FREE;
 	m_s_lock.unlock();
 
-	DB_EVENT event;
-	event.obj_id = m_id;
-	strcpy_s(event.name, m_name);
-	event.event_type = EV_DB_DISCONNECT;
-	SharedData::g_db.db_queue.push(event);
+	//DB_EVENT event;
+	//event.obj_id = m_id;
+	//strcpy_s(event.name, m_name);
+	//event.event_type = DB_DISCONNECT;
+	//SharedData::g_db.db_queue.push(event);
+
+	SharedData::g_db.Enqueue(m_id, m_name, DB_DISCONNECT);
+}
+
+void CPlayer::Tick()
+{
+	if (m_state != ST_INGAME) return;
+
+	if (m_recovery_time + 5s > chrono::system_clock::now()) {
+		RecoverHp();
+		m_recovery_time = chrono::system_clock::now();
+	}
+
+	CheckExpAndLevel();
+
+	if (m_hp <= 0) {
+		Respawn();
+	}
+}
+
+void CPlayer::CheckExpAndLevel()
+{
+	if (m_exp >= m_requiredExp) {
+		m_level += 1;
+		m_requiredExp *= 2;
+	}
+}
+
+void CPlayer::Respawn()
+{
+	m_exp -= m_exp / 2;
+	m_hp = MAX_HP;
+	// 시작 위치로 옮기기
+}
+
+void CPlayer::RecoverHp()
+{
+	if (m_hp < MAX_HP) {
+		m_hp += MAX_HP / 10;
+		if (m_hp > MAX_HP)
+			m_hp = MAX_HP;
+	}
 }
 
 void CPlayer::SendPacket(void* packet)

@@ -1,12 +1,12 @@
 #pragma once
 #include "stdafx.h"
 
-enum EV_DB_TYPE { EV_DB_LOGIN, EV_DB_UPDATE, EV_DB_DISCONNECT };
+enum DB_TYPE { DB_LOGIN, DB_UPDATE, DB_DISCONNECT };
 
 struct DB_EVENT {
 	int obj_id;
 	char name[NAME_SIZE];
-	EV_DB_TYPE event_type;
+	DB_TYPE event_type;
 };
 
 class CDataBase {
@@ -30,8 +30,11 @@ public:
 	void DB_CheckLogin(DB_EVENT event);
 	void DB_LoginOk(DB_EVENT event);
 	void DB_InsertUserData(DB_EVENT event);
-	void DB_UpdateClientsData();
+	void DB_SaveData();
 	void DB_UpdateUserData(DB_EVENT event);
+
+	void Enqueue(int _obj_id, char* _name, DB_TYPE _type);
+	void Enqueue(int _obj_id, DB_TYPE _type);
 
 	void show_error(SQLHANDLE hHandle, SQLSMALLINT hType, RETCODE RetCode);
 };

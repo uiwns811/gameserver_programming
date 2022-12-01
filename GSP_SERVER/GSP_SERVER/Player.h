@@ -14,6 +14,9 @@ public:
 	std::unordered_set<short> m_viewlist;
 	mutex m_vl_lock;
 
+	short m_requiredExp = START_EXP * 2;
+	chrono::system_clock::time_point recovery_time;
+
 public:
 	CPlayer()
 	{
@@ -26,6 +29,11 @@ public:
 	void Initialize();
 
 	void Disconnect();
+
+	void Tick();
+	void CheckExpAndLevel();
+	void Respawn();
+	void RecoverHp();
 
 	void SendPacket(void* packet);
 	void Recv();
