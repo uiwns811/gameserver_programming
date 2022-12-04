@@ -28,6 +28,9 @@ public:
 
 	void SetAvatar(short id);
 
+	short GetAvatarID() { return m_avatarID; }
+	void GetAvatarInfo(char* name, short& x, short& y, short& exp, short& level, short& hp);
+
 	void GetTLPos(short& left, short& top) { left = m_left; top = m_top; }
 };
 

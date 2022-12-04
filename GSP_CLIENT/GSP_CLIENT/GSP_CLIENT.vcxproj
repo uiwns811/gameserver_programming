@@ -134,6 +134,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="GameFramework.cpp" />
+    <ClCompile Include="GameGUI.cpp" />
+    <ClCompile Include="include\imgui\imgui-SFML.cpp" />
+    <ClCompile Include="include\imgui\imgui.cpp" />
+    <ClCompile Include="include\imgui\imgui_demo.cpp" />
+    <ClCompile Include="include\imgui\imgui_draw.cpp" />
+    <ClCompile Include="include\imgui\imgui_tables.cpp" />
+    <ClCompile Include="include\imgui\imgui_widgets.cpp" />
     <ClCompile Include="IngameScene.cpp" />
     <ClCompile Include="LoginScene.cpp" />
     <ClCompile Include="main.cpp" />
@@ -147,6 +154,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\protocol.h" />
     <ClInclude Include="GameFramework.h" />
+    <ClInclude Include="GameGUI.h" />
     <ClInclude Include="IngameScene.h" />
     <ClInclude Include="LoginScene.h" />
     <ClInclude Include="Map.h" />

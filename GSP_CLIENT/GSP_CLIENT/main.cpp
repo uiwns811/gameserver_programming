@@ -3,6 +3,7 @@
 #include "SceneMgr.h"
 #include "PlayerMgr.h"
 #include "Network.h"
+#include "GameGUI.h"
 
 int main()
 {
@@ -11,11 +12,15 @@ int main()
 	sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "2019182026");
 	CGameFramework::GetInst()->SetWindow(window);
 
+	CGameGUI::GetInst()->Init(window);
+
 	while (window.isOpen())
 	{
 		sf::Event event;
 		while (window.pollEvent(event))
 		{
+			ImGui::SFML::ProcessEvent(event);
+
 			switch (event.type) {
 			case sf::Event::Closed:
 				window.close();
@@ -48,6 +53,7 @@ int main()
 				}
 			}
 		}
+
 		window.clear();
 		CGameFramework::GetInst()->Update();
 		window.display();

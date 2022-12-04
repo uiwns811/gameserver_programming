@@ -69,8 +69,13 @@ public:
 	void Move(short x, short y) { m_x = x; m_y = y; }
 	void Move(char direction);
 
+	char* GetName() { return m_name; }
+	short GetId() { return m_id; }
 	short GetX() { return m_x; }
 	short GetY() { return m_y; }
+	short GetExp() { return m_exp; }
+	short GetLevel() { return m_level; }
+	short GetHp() { return m_hp; }
 
 	void Render(short left, short top);
 };

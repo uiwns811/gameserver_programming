@@ -234,7 +234,7 @@ void CDataBase::Enqueue(int _obj_id, char* _name, DB_TYPE _type)
 {
 	DB_EVENT event;
 	event.obj_id = _obj_id;
-	strncpy(event.name, _name, NAME_SIZE);
+	strncpy_s(event.name, _name, NAME_SIZE);
 	event.event_type = _type;
 	db_queue.push(event);
 }

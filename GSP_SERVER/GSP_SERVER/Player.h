@@ -15,7 +15,7 @@ public:
 	mutex m_vl_lock;
 
 	short m_requiredExp = START_EXP * 2;
-	chrono::system_clock::time_point recovery_time;
+	chrono::system_clock::time_point m_recovery_time;
 
 public:
 	CPlayer()

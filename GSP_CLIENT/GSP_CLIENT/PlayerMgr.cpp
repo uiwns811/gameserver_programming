@@ -89,3 +89,13 @@ void CPlayerMgr::SetAvatar(short id)
 	m_avatarID = id; 
 	players[m_avatarID]->SetTexture(*playerTex1, 0, 0);
 }
+
+void CPlayerMgr::GetAvatarInfo(char* name, short& x, short& y, short& exp, short& level, short& hp)
+{
+	strncpy_s(name, NAME_SIZE, players[m_avatarID]->GetName(), NAME_SIZE);
+	x = players[m_avatarID]->GetX();
+	y = players[m_avatarID]->GetY();
+	exp = players[m_avatarID]->GetExp();
+	level = players[m_avatarID]->GetLevel();
+	hp = players[m_avatarID]->GetHp();
+}

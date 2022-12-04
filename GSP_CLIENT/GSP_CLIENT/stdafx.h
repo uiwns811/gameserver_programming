@@ -1,10 +1,13 @@
 #pragma once
 
-#define SFML_STATIC 1
+// #define SFML_STATIC 1
 #include <SFML/Graphics.hpp>
 #include <SFML/Network.hpp>
+#include <SFML/System/Clock.hpp>
 #include <iostream>
 using namespace std;
+
+#define _CRT_SECURE_NO_WARNINGS
 
 #ifdef _DEBUG
 #pragma comment (lib, "lib/sfml-graphics-s-d.lib")
@@ -21,9 +24,15 @@ using namespace std;
 #pragma comment (lib, "winmm.lib")
 #pragma comment (lib, "ws2_32.lib")
 
+#include <imgui/imgui.h>
+#include <imgui/imconfig.h>
+#include <imgui/imgui-SFML.h>
+#include <imgui/imconfig-SFML.h>
+
 #include <WS2tcpip.h>
 #include <vector>
 #include <unordered_map>
+#include <string.h>
 #include <fstream>
 
 #include "..\..\protocol.h"
