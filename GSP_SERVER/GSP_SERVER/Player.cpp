@@ -43,13 +43,6 @@ void CPlayer::Disconnect()
 
 	closesocket(m_socket);
 
-
-	//DB_EVENT event;
-	//event.obj_id = m_id;
-	//strcpy_s(event.name, m_name);
-	//event.event_type = DB_DISCONNECT;
-	//SharedData::g_db.db_queue.push(event);
-
 	SharedData::g_db.Enqueue(m_id, m_name, DB_DISCONNECT);
 }
 
@@ -57,18 +50,40 @@ void CPlayer::Tick()
 {
 	if (m_state != ST_INGAME) return;
 
-	if (m_recovery_cooltime + 5s > chrono::system_clock::now()) {
+	if (m_recovery_cooltime + 5s < chrono::system_clock::now()) {
 		RecoverHp();
 		m_recovery_cooltime = chrono::system_clock::now();
 	}
-
-	if (m_is_attack == true)
-		Attack();
 
 	CheckExpAndLevel();
 
 	if (m_hp <= 0) {
 		Respawn();
+	}
+}
+
+void CPlayer::Move(int direction, unsigned char move_time)
+{
+	short x = m_x;
+	short y = m_y;
+	short oldX = x;
+	short oldY = y;
+	switch (direction) {
+	case 0: if (y > 0) y--; break;
+	case 1: if (y < W_HEIGHT - 1) y++; break;
+	case 2: if (x > 0) x--; break;
+	case 3: if (x < W_WIDTH - 1) x++; break;
+	}
+
+	// 서버에서 한 번 더 체크 -> 갈 수 없는 곳에 갔으면 원위치로 이동
+	if (SharedData::g_map[x][y]) {
+		m_x = x;
+		m_y = y;
+		m_move_time = move_time;
+
+		SharedData::g_sector.UpdateSector(m_id, x, y, oldX, oldY);
+		CheckViewList();
+		//player->SendMovePlayerPacket(c_id);
 	}
 }
 
@@ -98,8 +113,16 @@ void CPlayer::RecoverHp()
 
 void CPlayer::Attack()
 {
-	SendAttackPlayerPacket();
-	m_is_attack = false;
+	m_vl_lock.lock();
+	unordered_set<short> vlist = m_viewlist;
+	m_vl_lock.unlock();
+
+	SendAttackPlayerPacket(m_id);
+	for (auto& pl : vlist) {
+		if (is_pc(pl)) {
+			reinterpret_cast<CPlayer*>(SharedData::g_clients[pl])->SendAttackPlayerPacket(m_id);
+		}
+	}
 }
 
 void CPlayer::SendPacket(void* packet)
@@ -230,10 +253,10 @@ void CPlayer::SendRemovePlayerPacket(short c_id)
 	SendPacket(&p);
 }
 
-void CPlayer::SendAttackPlayerPacket()
+void CPlayer::SendAttackPlayerPacket(short c_id)
 {
 	SC_ATTACK_PLAYER_PACKET p;
-	p.id = m_id;
+	p.id = c_id;
 	p.size = sizeof(SC_ATTACK_PLAYER_PACKET);
 	p.type = SC_ATTACK_PLAYER;
 	SendPacket(&p);

@@ -19,6 +19,8 @@ public:
 public:
 	void Initialize();
 	void Tick();
+
+	void Move();
 };
 
 void InitializeNPC();

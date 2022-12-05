@@ -53,16 +53,13 @@ void Initialize()
 
 void do_tick()
 {
-	while (true) {
-		for (auto& c : SharedData::g_clients) {
-			if (c->m_id < MAX_USER) {
-				reinterpret_cast<CPlayer*>(c)->Tick();
-			}
-			else {
-				reinterpret_cast<CNPC*>(c)->Tick();
-			}
+	for (auto& c : SharedData::g_clients) {
+		if (c->m_id < MAX_USER) {
+			reinterpret_cast<CPlayer*>(c)->Tick();
 		}
-		this_thread::sleep_for(1s);
+		else {
+			reinterpret_cast<CNPC*>(c)->Tick();
+		}
 	}
 }
 
@@ -73,8 +70,6 @@ void ProcessPacket(int c_id, char* packet)
 	{
 		CS_LOGIN_PACKET* p = reinterpret_cast<CS_LOGIN_PACKET*>(packet);
 
-		// 만약 이미 들어와있는 애들 중에 name 겹치는 애가 없으면 로그인 성공한다치고 DB Access
-		// g_clients에 중복된 name이 있고, 걔가 지금 활동중이면 아예 로그인 못함
 		for (auto& cl : SharedData::g_clients) {
 			if (cl->m_id > MAX_USER) continue;
 			if (cl->m_id == c_id) continue;
@@ -95,48 +90,17 @@ void ProcessPacket(int c_id, char* packet)
 
 		TIMER_EVENT ev{ c_id, chrono::system_clock::now() + 60s, EV_DB_UPDATE, 0 };
 		SharedData::timer_queue.push(ev);
-
-
-
-		//SharedData::g_clients[c_id]->SendLoginOkPacket();		// 여기서 DB 체크하고 LoginOk일지 LoginFail일지 판단
-
-		//SharedData::g_clients[c_id]->m_s_lock.lock();
-		//SharedData::g_clients[c_id]->m_state = ST_INGAME;
-		//SharedData::g_clients[c_id]->m_s_lock.unlock();
-
-		//for (auto& pl : SharedData::g_clients) {
-		//	if (ST_INGAME != pl.m_state) continue;
-		//	if (pl.m_id == c_id) continue;
-		//	if (false == SharedData::g_clients[c_id]->CanSee(pl.m_id)) continue;
-		//	pl.SendAddPlayerPacket(c_id);
-		//	SharedData::g_clients[c_id]->SendAddPlayerPacket(pl.m_id);
-		//}
 	}
 	break;
 	case CS_MOVE:
 	{
 		CS_MOVE_PACKET* p = reinterpret_cast<CS_MOVE_PACKET*>(packet);
+		int direction = p->direction;
+		unsigned char move_time = p->move_time;
 		CPlayer* player = reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id]);
-		short x = player->m_x;
-		short y = player->m_y;
-		short oldX = x;
-		short oldY = y;
-		switch (p->direction) {
-		case 0: if (y > 0) y--; break;
-		case 1: if (y < W_HEIGHT - 1) y++; break;
-		case 2: if (x > 0) x--; break;
-		case 3: if (x < W_WIDTH - 1) x++; break;
-		}
-
-		// 서버에서 한 번 더 체크 -> 갈 수 없는 곳에 갔으면 원위치로 이동
-		if (SharedData::g_map[x][y]) {
-			player->m_x = x;
-			player->m_y = y;
-			player->m_move_time = p->move_time;
-
-			SharedData::g_sector.UpdateSector(c_id, x, y, oldX, oldY);
-			player->CheckViewList();
-			//player->SendMovePlayerPacket(c_id);
+		if (player->m_move_cooltime + 1s < chrono::system_clock::now()) {
+			player->Move(direction, move_time);
+			player->m_move_cooltime = chrono::system_clock::now();
 		}
 	}
 	break;
@@ -144,7 +108,10 @@ void ProcessPacket(int c_id, char* packet)
 	{
 		CS_ATTACK_PACKET* p = reinterpret_cast<CS_ATTACK_PACKET*>(packet);
 		CPlayer* player = reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id]);
-		player->SetAttack(true);
+		if (player->m_attack_cooltime + 1s < chrono::system_clock::now()) {
+			player->Attack();
+			player->m_attack_cooltime = chrono::system_clock::now();
+		}
 	}
 	break;
 	}
@@ -268,11 +235,20 @@ void WorkerThread()
 		}
 		break;
 		case OP_DB_UPDATE:
+		{
 			SharedData::g_db.Enqueue(0, DB_UPDATE);
 
 			TIMER_EVENT ev{ key, chrono::system_clock::now() + 30s, EV_DB_UPDATE, 0 };			// 30초마다 저장
 			SharedData::timer_queue.push(ev);
-			break;
+		}
+		break;
+		case OP_TICK:
+		{
+			do_tick();
+			TIMER_EVENT ev{ key, chrono::system_clock::now() + 1s, EV_TICK, 0 };
+			SharedData::timer_queue.push(ev);
+		}
+		break;
 		}
 	}
 }
@@ -314,9 +290,9 @@ int main()
 		worker_threads.emplace_back(WorkerThread);
 	thread db_thread([&]() {SharedData::g_db.DB_Thread(); });
 	thread timer_thread{ do_timer };
-	thread tick_thread{ do_tick };
+	//thread tick_thread{ do_tick };
 
-	tick_thread.join();
+	//tick_thread.join();
 	timer_thread.join();
 	db_thread.join();
 	for (auto& th : worker_threads)

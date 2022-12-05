@@ -12,6 +12,16 @@ void CNPC::Tick()
 
 }
 
+void CNPC::Move()
+{
+	switch (m_move_type) {
+	case NPC_FIXED:
+		break;
+	case NPC_LOAMING:
+		break;
+	}
+}
+
 void InitializeNPC()
 {
 	cout << "NPC Initialize Start" << endl;

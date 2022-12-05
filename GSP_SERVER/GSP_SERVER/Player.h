@@ -22,7 +22,10 @@ public:
 
 	chrono::system_clock::time_point m_recovery_cooltime;
 	chrono::system_clock::time_point m_attack_cooltime;
-	bool m_is_attack;
+	chrono::system_clock::time_point m_move_cooltime;
+
+	atomic_bool m_is_attack;
+	atomic_bool m_is_move;
 
 public:
 	CPlayer()
@@ -46,6 +49,8 @@ public:
 	void Attack();
 	void SetAttack(bool _bTrue) { m_is_attack = _bTrue; }
 
+	void Move(int direction, unsigned char move_time);
+
 	void SendPacket(void* packet);
 	void Recv();
 
@@ -56,6 +61,6 @@ public:
 	void SendAddPlayerPacket(short c_id);
 	void SendMovePlayerPacket(short c_id);
 	void SendRemovePlayerPacket(short c_id);
-	void SendAttackPlayerPacket();
+	void SendAttackPlayerPacket(short c_id);
 };
 
