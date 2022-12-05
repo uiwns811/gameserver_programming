@@ -1,6 +1,7 @@
 #include "Player.h"
 #include "Sector.h"
 #include "DataBase.h"
+#include "function.h"
 
 void CPlayer::Initialize()
 {
@@ -11,13 +12,14 @@ void CPlayer::Initialize()
 	m_name[0] = 0;
 	m_prev_remain = 0;
 
-	m_x = rand() % 20;
-	m_y = rand() % 20;
+	m_x = rand() % W_WIDTH;
+	m_y = rand() % W_HEIGHT;
 	m_exp = START_EXP;
 	m_level = 1;
 	m_hp = MAX_HP;
 	m_requiredExp = START_EXP * 2;
 	m_is_active = false;
+	m_is_attack = false;
 }
 
 void CPlayer::Disconnect()
@@ -28,17 +30,19 @@ void CPlayer::Disconnect()
 
 	for (auto& id : vl)
 	{
-		auto& cl = SharedData::g_clients[id];
-		if (cl.m_id == m_id) continue;
-		if (ST_INGAME != cl.m_state) continue;
-		cl.SendRemovePlayerPacket(m_id);
+		if (is_npc(id)) continue;
+		CPlayer* cl = reinterpret_cast<CPlayer*>(SharedData::g_clients[id]);
+		if (cl->m_id == m_id) continue;
+		if (ST_INGAME != cl->m_state) continue;
+		cl->SendRemovePlayerPacket(m_id);
 	}
-
-	closesocket(m_socket);
 
 	m_s_lock.lock();
 	m_state = ST_FREE;
 	m_s_lock.unlock();
+
+	closesocket(m_socket);
+
 
 	//DB_EVENT event;
 	//event.obj_id = m_id;
@@ -53,10 +57,13 @@ void CPlayer::Tick()
 {
 	if (m_state != ST_INGAME) return;
 
-	if (m_recovery_time + 5s > chrono::system_clock::now()) {
+	if (m_recovery_cooltime + 5s > chrono::system_clock::now()) {
 		RecoverHp();
-		m_recovery_time = chrono::system_clock::now();
+		m_recovery_cooltime = chrono::system_clock::now();
 	}
+
+	if (m_is_attack == true)
+		Attack();
 
 	CheckExpAndLevel();
 
@@ -89,6 +96,12 @@ void CPlayer::RecoverHp()
 	}
 }
 
+void CPlayer::Attack()
+{
+	SendAttackPlayerPacket();
+	m_is_attack = false;
+}
+
 void CPlayer::SendPacket(void* packet)
 {
 	EXP_OVER* s = new EXP_OVER{ reinterpret_cast<char*>(packet) };
@@ -104,12 +117,6 @@ void CPlayer::Recv()
 	WSARecv(m_socket, &m_recv_over.wsabuf, 1, 0, &recv_flag, &m_recv_over.over, 0);
 }
 
-bool CPlayer::CanSee(short to)
-{
-	if ((m_x - SharedData::g_clients[to].m_x) > VIEW_RANGE) return false;
-	return abs(m_y - SharedData::g_clients[to].m_y) <= VIEW_RANGE;
-}
-
 void CPlayer::CheckViewList()
 {
 	m_vl_lock.lock();
@@ -118,25 +125,24 @@ void CPlayer::CheckViewList()
 
 	unordered_set<short> near_list;
 
-	//for (auto& cl : SharedData::g_clients) {			// 여기를 인접한 sector로 구현
-	//	if (cl.m_state != ST_INGAME) continue;
-	//	if (cl.m_id == m_id) continue;
-	//	if (CanSee(cl.m_id))
-	//		near_list.insert(cl.m_id);
-	//}
 	SharedData::g_sector.CreateNearList(near_list, m_id, m_x, m_y);
 	
+	SendMovePlayerPacket(m_id);
+
 	for (auto& pl : near_list) {
-		auto& cpl = SharedData::g_clients[pl];
-		cpl.m_vl_lock.lock();
-		if (cpl.m_viewlist.count(m_id)) {
-			cpl.m_vl_lock.unlock();
-			cpl.SendMovePlayerPacket(m_id);
+		if (is_pc(pl)) {
+			CPlayer* cpl = reinterpret_cast<CPlayer*>(SharedData::g_clients[pl]);
+			cpl->m_vl_lock.lock();
+			if (cpl->m_viewlist.count(m_id)) {
+				cpl->m_vl_lock.unlock();
+				cpl->SendMovePlayerPacket(m_id);
+			}
+			else {
+				cpl->m_vl_lock.unlock();
+				cpl->SendAddPlayerPacket(m_id);
+			}
 		}
-		else {
-			cpl.m_vl_lock.unlock();
-			cpl.SendAddPlayerPacket(m_id);
-		}
+		//else WakeUpNPC(pl, m_id);
 
 		if (old_vlist.count(pl) == 0) {
 			SendAddPlayerPacket(pl);
@@ -146,7 +152,9 @@ void CPlayer::CheckViewList()
 	for (auto& pl : old_vlist) {
 		if (near_list.count(pl) == 0) {
 			SendRemovePlayerPacket(pl);
-			SharedData::g_clients[pl].SendRemovePlayerPacket(m_id);
+			if (is_pc(pl)) {
+				reinterpret_cast<CPlayer*>(SharedData::g_clients[pl])->SendRemovePlayerPacket(m_id);
+			}
 		}
 	}
 }
@@ -159,6 +167,9 @@ void CPlayer::SendLoginOkPacket()
 	p.type = SC_LOGIN_OK;
 	p.x = m_x;
 	p.y = m_y;
+	p.exp = m_exp;
+	p.level = m_level;
+	p.hp = m_hp;
 	SendPacket(&p);
 }
 
@@ -175,11 +186,11 @@ void CPlayer::SendAddPlayerPacket(short c_id)
 {
 	SC_ADD_PLAYER_PACKET p;
 	p.id = c_id;
-	strcpy_s(p.name, SharedData::g_clients[c_id].m_name);
+	strcpy_s(p.name, SharedData::g_clients[c_id]->m_name);
 	p.size = sizeof(p);
 	p.type = SC_ADD_PLAYER;
-	p.x = SharedData::g_clients[c_id].m_x;
-	p.y = SharedData::g_clients[c_id].m_y;
+	p.x = SharedData::g_clients[c_id]->m_x;
+	p.y = SharedData::g_clients[c_id]->m_y;
 	m_vl_lock.lock();
 	m_viewlist.insert(c_id);
 	m_vl_lock.unlock();
@@ -192,9 +203,9 @@ void CPlayer::SendMovePlayerPacket(short c_id)
 	p.id = c_id;
 	p.size = sizeof(SC_MOVE_PLAYER_PACKET);
 	p.type = SC_MOVE_PLAYER;
-	p.x = SharedData::g_clients[c_id].m_x;
-	p.y = SharedData::g_clients[c_id].m_y;
-	p.move_time = SharedData::g_clients[c_id].m_move_time;
+	p.x = reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id])->m_x;
+	p.y = reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id])->m_y;
+	p.move_time = reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id])->m_move_time;
 	SendPacket(&p);
 }
 
@@ -203,16 +214,27 @@ void CPlayer::SendRemovePlayerPacket(short c_id)
 	m_vl_lock.lock();
 	if (m_viewlist.count(c_id)) {
 		m_viewlist.erase(c_id);	
-		m_vl_lock.unlock();	
 	}
 	else {
 		m_vl_lock.unlock();
 		return;
 	}
+	m_vl_lock.unlock();	
+
+	//SharedData::g_sector.RemoveSector(c_id, SharedData::g_clients[c_id]->m_x, SharedData::g_clients[c_id]->m_y);
 
 	SC_REMOVE_PLAYER_PACKET p;
 	p.id = c_id;
 	p.size = sizeof(SC_REMOVE_PLAYER_PACKET);
 	p.type = SC_REMOVE_PLAYER;
+	SendPacket(&p);
+}
+
+void CPlayer::SendAttackPlayerPacket()
+{
+	SC_ATTACK_PLAYER_PACKET p;
+	p.id = m_id;
+	p.size = sizeof(SC_ATTACK_PLAYER_PACKET);
+	p.type = SC_ATTACK_PLAYER;
 	SendPacket(&p);
 }

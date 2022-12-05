@@ -1,7 +1,6 @@
 #include "Map.h"
 #include "GameFramework.h"
-#include "PlayerMgr.h"
-#include "Player.h"
+#include "ObjectMgr.h"
 
 void CMap::Init()
 {
@@ -51,7 +50,7 @@ void CMap::Render()
 	if (!m_bRender) return;
 
 	short left, top;
-	CPlayerMgr::GetInst()->GetTLPos(left, top);
+	CObjectMgr::GetInst()->GetTLPos(left, top);
 
 	for (short i = top; i < top + SCREEN_HEIGHT; ++i) {
 		for (short j = left; j < left + SCREEN_WIDTH; ++j) {

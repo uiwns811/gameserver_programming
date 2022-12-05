@@ -1,5 +1,5 @@
 #include "Network.h"
-#include "PlayerMgr.h"
+#include "ObjectMgr.h"
 #include "Map.h"
 #include "GameFramework.h"
 
@@ -90,10 +90,17 @@ void CNetwork::ProcessPacket(char* packet)
 		short id = my_packet->id;
 		short x = my_packet->x;
 		short y = my_packet->y;
-		CPlayerMgr::GetInst()->SetAvatar(id);
-		CPlayerMgr::GetInst()->AddPlayer(m_hostName, id, x, y);
+		short exp = my_packet->exp;
+		short level = my_packet->level;
+		short hp = my_packet->hp;
+		CObjectMgr::GetInst()->SetAvatar(id);
+		CObjectMgr::GetInst()->AddObject(m_hostName, id, x, y);
+		CObjectMgr::GetInst()->SetExp(id, exp);
+		CObjectMgr::GetInst()->SetLevel(id, level);
+		CObjectMgr::GetInst()->SetHP(id, hp);
 		m_hostID = id;
 		CMap::GetInst()->SetRender(true);
+		cout << "LOGIN OK!" << endl;
 		break;
 	}
 	case SC_LOGIN_FAIL:
@@ -108,8 +115,7 @@ void CNetwork::ProcessPacket(char* packet)
 		short y = my_packet->y;
 		char name[NAME_SIZE];
 		strncpy_s(name, my_packet->name, NAME_SIZE);
-		CPlayerMgr::GetInst()->AddPlayer(name, id, x, y);
-		CPlayerMgr::GetInst()->Move(id, x, y);
+		CObjectMgr::GetInst()->AddObject(name, id, x, y);
 		break;
 	}
 	case SC_MOVE_PLAYER:
@@ -118,14 +124,23 @@ void CNetwork::ProcessPacket(char* packet)
 		short id = my_packet->id;
 		short x = my_packet->x;
 		short y = my_packet->y;
-		CPlayerMgr::GetInst()->Move(id, x, y);
+		CObjectMgr::GetInst()->Move(id, x, y);
 		break;
 	}
 
 	case SC_REMOVE_PLAYER:
 	{
 		SC_REMOVE_PLAYER_PACKET* my_packet = reinterpret_cast<SC_REMOVE_PLAYER_PACKET*>(packet);
-		CPlayerMgr::GetInst()->RemovePlayer(my_packet->id);
+		short id = my_packet->id;
+		CObjectMgr::GetInst()->RemoveObject(id);
+		break;
+	}
+
+	case SC_ATTACK_PLAYER:
+	{
+		SC_ATTACK_PLAYER_PACKET* my_packet = reinterpret_cast<SC_ATTACK_PLAYER_PACKET*>(packet);
+		short id = my_packet->id;
+		CObjectMgr::GetInst()->Attack(id);
 		break;
 	}
 	default:

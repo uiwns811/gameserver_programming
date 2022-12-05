@@ -143,11 +143,11 @@ void CDataBase::DB_LoginOk(DB_EVENT event)
 void CDataBase::DB_InsertUserData(DB_EVENT event)
 {
 	string name(event.name);
-	short x = SharedData::g_clients[event.obj_id].m_x;
-	short y = SharedData::g_clients[event.obj_id].m_y;
-	short exp = SharedData::g_clients[event.obj_id].m_exp;
-	short level = SharedData::g_clients[event.obj_id].m_level;
-	short hp = SharedData::g_clients[event.obj_id].m_hp;
+	short x = SharedData::g_clients[event.obj_id]->m_x;
+	short y = SharedData::g_clients[event.obj_id]->m_y;
+	short exp = SharedData::g_clients[event.obj_id]->m_exp;
+	short level = SharedData::g_clients[event.obj_id]->m_level;
+	short hp = SharedData::g_clients[event.obj_id]->m_hp;
 
 	string query_s = "EXEC insert_data " + name + ", " + to_string(x) + ", " + to_string(y) + ", " + to_string(exp) + ", " + to_string(level) + ", " + to_string(hp);
 	wstring query(query_s.begin(), query_s.end());
@@ -166,20 +166,21 @@ void CDataBase::DB_InsertUserData(DB_EVENT event)
 	SQLCancel(hstmt);
 }
 
-void CDataBase::DB_SaveData()		// clients 전체 업데이트
+void CDataBase::DB_SaveData()		// player info 전체 업데이트
 {
-	cout << "DB Save" << endl;
 	for (auto& cl : SharedData::g_clients) {
-		cl.m_s_lock.lock();
-		if (cl.m_state != ST_INGAME) {
-			cl.m_s_lock.unlock();
+		if (cl->m_id > MAX_USER) continue;
+
+		cl->m_s_lock.lock();
+		if (cl->m_state != ST_INGAME) {
+			cl->m_s_lock.unlock();
 			continue;
 		}
-		cl.m_s_lock.unlock();
+		cl->m_s_lock.unlock();
 
-		wstring player_name(cl.m_name, &cl.m_name[NAME_SIZE]);
-		string name(cl.m_name);
-		string query_s = "EXEC update_data " + name + ", " + to_string(cl.m_x) + ", " + to_string(cl.m_y) + ", " + to_string(cl.m_exp) + ", " + to_string(cl.m_level) + ", " + to_string(cl.m_hp);
+		wstring player_name(cl->m_name, &cl->m_name[NAME_SIZE]);
+		string name(cl->m_name);
+		string query_s = "EXEC update_data " + name + ", " + to_string(cl->m_x) + ", " + to_string(cl->m_y) + ", " + to_string(cl->m_exp) + ", " + to_string(cl->m_level) + ", " + to_string(cl->m_hp);
 
 		wstring query(query_s.begin(), query_s.end());
 
@@ -194,11 +195,11 @@ void CDataBase::DB_SaveData()		// clients 전체 업데이트
 void CDataBase::DB_UpdateUserData(DB_EVENT event)		// disconnect했을 때 특정 객체 업데이트
 {
 	string name(event.name);
-	short x = SharedData::g_clients[event.obj_id].m_x;
-	short y = SharedData::g_clients[event.obj_id].m_y;
-	short exp = SharedData::g_clients[event.obj_id].m_exp;
-	short level = SharedData::g_clients[event.obj_id].m_level;
-	short hp = SharedData::g_clients[event.obj_id].m_hp;
+	short x = SharedData::g_clients[event.obj_id]->m_x;
+	short y = SharedData::g_clients[event.obj_id]->m_y;
+	short exp = SharedData::g_clients[event.obj_id]->m_exp;
+	short level = SharedData::g_clients[event.obj_id]->m_level;
+	short hp = SharedData::g_clients[event.obj_id]->m_hp;
 
 	string query_s = "EXEC update_data " + name + ", " + to_string(x) + ", " + to_string(y) + ", " + to_string(exp) + ", " + to_string(level) + ", " + to_string(hp);
 	wstring query(query_s.begin(), query_s.end());

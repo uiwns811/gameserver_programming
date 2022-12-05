@@ -1,5 +1,6 @@
 #include "Sector.h"
 #include "Player.h"
+#include "function.h"
 
 void CSector::UpdateSector(short id, short x, short y, short oldx, short oldy)
 {
@@ -41,22 +42,23 @@ void CSector::RemoveSector(short id, short x, short y)
 void CSector::FindNear(std::unordered_set<short>& nearlist, int id, int xIdx, int yIdx)
 {
 	for (auto& cl : m_sectorObjList[xIdx][yIdx]) {
-		if (SharedData::g_clients[cl].m_state != ST_INGAME) continue;
-		if (SharedData::g_clients[cl].m_id == id) continue;
-		if (SharedData::g_clients[id].CanSee(cl))
+		if (SharedData::g_clients[cl]->m_state != ST_INGAME) continue;
+		if (SharedData::g_clients[cl]->m_id == id) continue;
+		if (can_see(id, cl))
 			nearlist.insert(cl);
 	}
 }
 
 void CSector::CreateNearList(std::unordered_set<short>& nearlist, short id, short x, short y)
 {
-
+	// 0 2
+	// 1 3
 	short xIdx = x / SECTOR_SIZE;			// sector¿« ¿Œµ¶Ω∫
 	short yIdx = y / SECTOR_SIZE;
 	if (xIdx < 1) xIdx = 1;
 	if (yIdx < 1) yIdx = 1;
-	if (xIdx > SECTOR_CNT - 1) xIdx = SECTOR_CNT - 1;
-	if (yIdx > SECTOR_CNT - 1) yIdx = SECTOR_CNT - 1;
+	if (xIdx > SECTOR_CNT - 2) xIdx = SECTOR_CNT - 2;
+	if (yIdx > SECTOR_CNT - 2) yIdx = SECTOR_CNT - 2;
 
 	if (x < xIdx * SECTOR_SIZE + SECTOR_HALF) {
 		if (y < yIdx * SECTOR_SIZE + SECTOR_HALF) {
@@ -76,12 +78,12 @@ void CSector::CreateNearList(std::unordered_set<short>& nearlist, short id, shor
 		if (y < yIdx * SECTOR_SIZE + SECTOR_HALF) {
 			FindNear(nearlist, id, xIdx, yIdx);
 			FindNear(nearlist, id, xIdx + 1, yIdx);
-			FindNear(nearlist, id, xIdx, yIdx + 1);
-			FindNear(nearlist, id, xIdx + 1, yIdx + 1);
-		}
-		else {
 			FindNear(nearlist, id, xIdx, yIdx - 1);
 			FindNear(nearlist, id, xIdx + 1, yIdx - 1);
+		}
+		else {
+			FindNear(nearlist, id, xIdx, yIdx + 1);
+			FindNear(nearlist, id, xIdx + 1, yIdx + 1);
 			FindNear(nearlist, id, xIdx, yIdx);
 			FindNear(nearlist, id, xIdx + 1, yIdx);
 		}

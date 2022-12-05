@@ -2,12 +2,12 @@
 #include "SceneMgr.h"
 #include "Map.h"
 #include "GameFramework.h"
-#include "PlayerMgr.h"
+#include "ObjectMgr.h"
 
 void CIngameScene::Init()
 {
 	CMap::GetInst()->Init();
-	CPlayerMgr::GetInst()->Init();
+	CObjectMgr::GetInst()->Init();
 }
 
 void CIngameScene::Start()
@@ -23,11 +23,12 @@ void CIngameScene::Update()
 void CIngameScene::Render()
 {
 	CMap::GetInst()->Render();
-	CPlayerMgr::GetInst()->Render();
+	CObjectMgr::GetInst()->Render();
 }
 
 void CIngameScene::CleanUp()
 {
 	CMap::GetInst()->CleanUp();
-	CPlayerMgr::GetInst()->CleanUp();
+	
+	CObjectMgr::GetInst()->CleanUp();
 }

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "GameFramework.h"
 #include "SceneMgr.h"
-#include "PlayerMgr.h"
+#include "ObjectMgr.h"
 #include "Network.h"
 #include "GameGUI.h"
 
@@ -40,6 +40,12 @@ int main()
 				case sf::Keyboard::Down:
 					direction = 1;
 					break;
+				case sf::Keyboard::A:
+					CS_ATTACK_PACKET p;
+					p.size = sizeof(CS_MOVE_PACKET);
+					p.type = CS_ATTACK;
+					CNetwork::GetInst()->SendPacket(&p);
+					break;
 				case sf::Keyboard::Escape:
 					window.close();
 					break;
@@ -53,7 +59,6 @@ int main()
 				}
 			}
 		}
-
 		window.clear();
 		CGameFramework::GetInst()->Update();
 		window.display();

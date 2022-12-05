@@ -1,8 +1,6 @@
 #pragma once
 #include "stdafx.h"
 
-enum S_STATE {ST_FREE, ST_ALLOC, ST_INGAME};
-
 class CObject
 {
 public:
@@ -16,8 +14,5 @@ public:
 
 	mutex m_s_lock;
 	atomic<S_STATE> m_state;
-	atomic_bool m_is_active;
-
-	unsigned m_move_time;
 };
 

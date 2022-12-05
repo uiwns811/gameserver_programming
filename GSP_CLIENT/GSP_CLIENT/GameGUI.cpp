@@ -1,6 +1,6 @@
 #include "GameGUI.h"
 #include "GameFramework.h"
-#include "PlayerMgr.h"
+#include "ObjectMgr.h"
 
 void CGameGUI::Init(sf::RenderWindow& window)
 {
@@ -32,13 +32,13 @@ void CGameGUI::CleanUp()
 
 void CGameGUI::ShowUserInfo()
 {
-	if (CPlayerMgr::GetInst()->GetAvatarID() == -1) return;
+	if (CObjectMgr::GetInst()->GetAvatarID() == -1) return;
 
 	ImGui::Begin("User Information");
 	
 	char name[NAME_SIZE];
 	short x, y, exp, level, hp;
-	CPlayerMgr::GetInst()->GetAvatarInfo(name, x, y, exp, level, hp);
+	CObjectMgr::GetInst()->GetAvatarInfo(name, x, y, exp, level, hp);
 	ImGui::Text("name : %s", &name);
 	ImGui::Text("pos : (%d, %d)", x, y);
 	ImGui::Text("exp : %d", exp);

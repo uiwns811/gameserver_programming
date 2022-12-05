@@ -3,9 +3,11 @@
 #include "Sector.h"
 #include "DataBase.h"
 #include "Timer.h"
+#include "NPC.h"
+#include "function.h"
 
 namespace SharedData {
-	array<CPlayer, MAX_USER + MAX_NPC> g_clients;
+	array<CObject*, MAX_USER + MAX_NPC> g_clients;
 	SOCKET g_listen_socket;
 	SOCKET g_c_socket;
 	EXP_OVER g_over;
@@ -18,6 +20,12 @@ namespace SharedData {
 
 void Initialize()
 {
+	for (int i = 0; i < MAX_USER ; ++i) {
+		SharedData::g_clients[i] = new CPlayer;
+	}
+	for (int i = MAX_USER; i < MAX_USER + MAX_NPC; ++i) {
+		SharedData::g_clients[i] = new CNPC;
+	}
 	memset(SharedData::g_map, true, sizeof(SharedData::g_map));
 	SharedData::g_db.DB_Initialize();
 
@@ -39,27 +47,20 @@ void Initialize()
 			}
 		}
 	}
-}
 
-short GetNewClientID()
-{
-	for (int i = 0; i < MAX_USER; ++i) {
-		SharedData::g_clients[i].m_s_lock.lock();
-		if (ST_FREE == SharedData::g_clients[i].m_state) {
-			SharedData::g_clients[i].m_s_lock.unlock();
-			return i;
-		}
-		SharedData::g_clients[i].m_s_lock.unlock();
-	}
-	return -1;
+	InitializeNPC();
 }
-
 
 void do_tick()
 {
 	while (true) {
 		for (auto& c : SharedData::g_clients) {
-			c.Tick();
+			if (c->m_id < MAX_USER) {
+				reinterpret_cast<CPlayer*>(c)->Tick();
+			}
+			else {
+				reinterpret_cast<CNPC*>(c)->Tick();
+			}
 		}
 		this_thread::sleep_for(1s);
 	}
@@ -75,17 +76,18 @@ void ProcessPacket(int c_id, char* packet)
 		// 만약 이미 들어와있는 애들 중에 name 겹치는 애가 없으면 로그인 성공한다치고 DB Access
 		// g_clients에 중복된 name이 있고, 걔가 지금 활동중이면 아예 로그인 못함
 		for (auto& cl : SharedData::g_clients) {
-			if (cl.m_id == c_id) continue;
-			if (cl.m_state != ST_INGAME) continue;
-			if (strcmp(cl.m_name, p->name) == 0) {
-				SharedData::g_clients[c_id].SendLoginFailPacket();
+			if (cl->m_id > MAX_USER) continue;
+			if (cl->m_id == c_id) continue;
+			if (cl->m_state != ST_INGAME) continue;
+			if (strcmp(cl->m_name, p->name) == 0) {
+				reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id])->SendLoginFailPacket();
 				cout << c_id << " : Login Fail!!" << endl;
 				return;
 			}
 		}
 
 		// DB에 insert, 초기값으로 넣어주기
-		strncpy_s(SharedData::g_clients[c_id].m_name, p->name, NAME_SIZE);
+		strncpy_s(SharedData::g_clients[c_id]->m_name, p->name, NAME_SIZE);
 
 		SharedData::g_db.Enqueue(c_id, p->name, DB_LOGIN);
 
@@ -96,25 +98,27 @@ void ProcessPacket(int c_id, char* packet)
 
 
 
-		//SharedData::g_clients[c_id].SendLoginOkPacket();		// 여기서 DB 체크하고 LoginOk일지 LoginFail일지 판단
+		//SharedData::g_clients[c_id]->SendLoginOkPacket();		// 여기서 DB 체크하고 LoginOk일지 LoginFail일지 판단
 
-		//SharedData::g_clients[c_id].m_s_lock.lock();
-		//SharedData::g_clients[c_id].m_state = ST_INGAME;
-		//SharedData::g_clients[c_id].m_s_lock.unlock();
+		//SharedData::g_clients[c_id]->m_s_lock.lock();
+		//SharedData::g_clients[c_id]->m_state = ST_INGAME;
+		//SharedData::g_clients[c_id]->m_s_lock.unlock();
 
 		//for (auto& pl : SharedData::g_clients) {
 		//	if (ST_INGAME != pl.m_state) continue;
 		//	if (pl.m_id == c_id) continue;
-		//	if (false == SharedData::g_clients[c_id].CanSee(pl.m_id)) continue;
+		//	if (false == SharedData::g_clients[c_id]->CanSee(pl.m_id)) continue;
 		//	pl.SendAddPlayerPacket(c_id);
-		//	SharedData::g_clients[c_id].SendAddPlayerPacket(pl.m_id);
+		//	SharedData::g_clients[c_id]->SendAddPlayerPacket(pl.m_id);
 		//}
 	}
 	break;
 	case CS_MOVE:
+	{
 		CS_MOVE_PACKET* p = reinterpret_cast<CS_MOVE_PACKET*>(packet);
-		short x = SharedData::g_clients[c_id].m_x;
-		short y = SharedData::g_clients[c_id].m_y;
+		CPlayer* player = reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id]);
+		short x = player->m_x;
+		short y = player->m_y;
 		short oldX = x;
 		short oldY = y;
 		switch (p->direction) {
@@ -126,15 +130,23 @@ void ProcessPacket(int c_id, char* packet)
 
 		// 서버에서 한 번 더 체크 -> 갈 수 없는 곳에 갔으면 원위치로 이동
 		if (SharedData::g_map[x][y]) {
-			SharedData::g_clients[c_id].m_x = x;
-			SharedData::g_clients[c_id].m_y = y;
-			SharedData::g_clients[c_id].m_move_time = p->move_time;
+			player->m_x = x;
+			player->m_y = y;
+			player->m_move_time = p->move_time;
 
 			SharedData::g_sector.UpdateSector(c_id, x, y, oldX, oldY);
-			SharedData::g_clients[c_id].CheckViewList();
-			SharedData::g_clients[c_id].SendMovePlayerPacket(c_id);
+			player->CheckViewList();
+			//player->SendMovePlayerPacket(c_id);
 		}
-		break;
+	}
+	break;
+	case CS_ATTACK:
+	{
+		CS_ATTACK_PACKET* p = reinterpret_cast<CS_ATTACK_PACKET*>(packet);
+		CPlayer* player = reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id]);
+		player->SetAttack(true);
+	}
+	break;
 	}
 }
 
@@ -153,7 +165,7 @@ void WorkerThread()
 			}
 			else {
 				cout << "Disconnect (GQCS Error) in [" << client_id << "]\n";
-				SharedData::g_clients[client_id].Disconnect();
+				reinterpret_cast<CPlayer*>(SharedData::g_clients[client_id])->Disconnect();
 				if (exp_over->op_type == OP_SEND) delete exp_over;
 				continue;
 			}
@@ -162,13 +174,14 @@ void WorkerThread()
 		switch (exp_over->op_type) {
 		case OP_ACCEPT:
 		{
-			short new_id = GetNewClientID();
+			short new_id = get_new_client_id();
 			if (new_id != -1) {
-				SharedData::g_clients[new_id].m_id = new_id;
-				SharedData::g_clients[new_id].Initialize();
-				SharedData::g_clients[new_id].m_socket = SharedData::g_c_socket;
+				CPlayer* player = reinterpret_cast<CPlayer*>(SharedData::g_clients[new_id]);
+				player->m_id = new_id;
+				player->Initialize();
+				player->m_socket = SharedData::g_c_socket;
 				CreateIoCompletionPort(reinterpret_cast<HANDLE>(SharedData::g_c_socket), SharedData::g_iocp, new_id, 0);
-				SharedData::g_clients[new_id].Recv();
+				player->Recv();
 				SharedData::g_c_socket = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
 			}
 			else {
@@ -181,7 +194,8 @@ void WorkerThread()
 		break;
 		case OP_RECV:
 		{
-			int remain_data = num_bytes + SharedData::g_clients[client_id].m_prev_remain;
+			CPlayer* player = reinterpret_cast<CPlayer*>(SharedData::g_clients[client_id]);
+			int remain_data = num_bytes + player->m_prev_remain;
 			char* p = exp_over->sendbuf;
 			while (remain_data > 0) {
 				int packet_size = p[0];
@@ -192,11 +206,11 @@ void WorkerThread()
 				}
 				else break;
 			}
-			SharedData::g_clients[client_id].m_prev_remain = remain_data;
+			player->m_prev_remain = remain_data;
 			if (remain_data > 0) {
 				memcpy(exp_over->sendbuf, p, remain_data);
 			}
-			SharedData::g_clients[client_id].Recv();
+			player->Recv();
 		}
 		break;
 		case OP_SEND:
@@ -205,43 +219,51 @@ void WorkerThread()
 		case OP_DB_LOGIN_WITH_INFO:
 		{
 			CObject* user_info = reinterpret_cast<CObject*>(exp_over->sendbuf);
-			SharedData::g_clients[client_id].m_x = user_info->m_x;
-			SharedData::g_clients[client_id].m_y = user_info->m_y;
-			SharedData::g_clients[client_id].m_exp = user_info->m_exp;
-			SharedData::g_clients[client_id].m_level = user_info->m_level;
-			SharedData::g_clients[client_id].m_hp = user_info->m_hp;
-			SharedData::g_clients[client_id].m_s_lock.lock();
-			SharedData::g_clients[client_id].m_state = ST_INGAME;
-			SharedData::g_clients[client_id].m_is_active = true;
-			SharedData::g_clients[client_id].m_s_lock.unlock();
-			SharedData::g_sector.InsertSector(client_id, SharedData::g_clients[client_id].m_x, SharedData::g_clients[client_id].m_y);
-			SharedData::g_clients[client_id].SendLoginOkPacket();
+			CPlayer* player = reinterpret_cast<CPlayer*>(SharedData::g_clients[client_id]);
+			player->m_x = user_info->m_x;
+			player->m_y = user_info->m_y;
+			player->m_exp = user_info->m_exp;
+			player->m_level = user_info->m_level;
+			player->m_hp = user_info->m_hp;
+			player->m_s_lock.lock();
+			player->m_state = ST_INGAME;
+			player->m_is_active = true;
+			player->m_s_lock.unlock();
+			SharedData::g_sector.InsertSector(client_id, player->m_x, player->m_y);
+			player->SendLoginOkPacket();
 			for (auto& pl : SharedData::g_clients) {
 				{
-					lock_guard<mutex> ll(pl.m_s_lock);
-					if (ST_INGAME != pl.m_state) continue;
+					lock_guard<mutex> ll(pl->m_s_lock);
+					if (ST_INGAME != pl->m_state) continue;
 				}
-				if (pl.m_id == client_id) continue;
-				if (SharedData::g_clients[client_id].CanSee(pl.m_id) == false) continue;
-				pl.SendAddPlayerPacket(client_id);
-				SharedData::g_clients[client_id].SendAddPlayerPacket(pl.m_id);
+				/*if (pl->m_id == client_id) continue;
+				if (can_see(client_id, pl->m_id) == false) continue;
+				pl->SendAddPlayerPacket(client_id);
+				SharedData::g_clients[client_id]->SendAddPlayerPacket(pl.m_id);*/
+				if (pl->m_id == client_id) continue;
+				if (false == can_see(client_id, pl->m_id)) continue;
+				if (is_pc(pl->m_id)) reinterpret_cast<CPlayer*>(pl)->SendAddPlayerPacket(client_id);
+				//else WakeUpNPC(pl->m_id, client_id);
+				player->SendAddPlayerPacket(pl->m_id);
 			}
 			delete exp_over;
 		}
 		break;
 		case OP_DB_LOGIN_NO_INFO:
 		{
-			SharedData::g_sector.InsertSector(client_id, SharedData::g_clients[client_id].m_x, SharedData::g_clients[client_id].m_y);
-			SharedData::g_clients[client_id].SendLoginOkPacket();
+			CPlayer* player = reinterpret_cast<CPlayer*>(SharedData::g_clients[client_id]);	
+			SharedData::g_sector.InsertSector(client_id, player->m_x, player->m_y);
+			player->SendLoginOkPacket();
 			for (auto& pl : SharedData::g_clients) {
 				{
-					lock_guard<mutex> ll(pl.m_s_lock);
-					if (ST_INGAME != pl.m_state) continue;
+					lock_guard<mutex> ll(pl->m_s_lock);
+					if (ST_INGAME != pl->m_state) continue;
 				}
-				if (pl.m_id == client_id) continue;
-				if (SharedData::g_clients[client_id].CanSee(pl.m_id) == false) continue;
-				pl.SendAddPlayerPacket(client_id);
-				SharedData::g_clients[client_id].SendAddPlayerPacket(pl.m_id);
+				if (pl->m_id == client_id) continue;
+				if (false == can_see(client_id, pl->m_id)) continue;
+				if (is_pc(pl->m_id)) reinterpret_cast<CPlayer*>(pl)->SendAddPlayerPacket(client_id);
+				//else WakeUpNPC(pl->m_id, client_id);
+				player->SendAddPlayerPacket(pl->m_id);
 			}
 		}
 		break;
@@ -278,9 +300,9 @@ int main()
 	SharedData::g_iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0);
 	CreateIoCompletionPort(reinterpret_cast<HANDLE>(SharedData::g_listen_socket), SharedData::g_iocp, 9999, 0);
 
-	// 맵 하자 섹터까지 + g_map에 flag 넣는거부터
-
 	Initialize();
+
+	cout << "Server Initialize Complete" << endl;
 	
 	SharedData::g_c_socket = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
 	SharedData::g_over.op_type = OP_ACCEPT;

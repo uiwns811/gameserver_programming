@@ -34,6 +34,7 @@ using namespace std;
 #include <unordered_map>
 #include <string.h>
 #include <fstream>
+#include <chrono>
 
 #include "..\..\protocol.h"
 
@@ -43,7 +44,9 @@ constexpr auto TILE_SIZE = 64.0f;
 constexpr auto TILE_HALF = TILE_SIZE / 2;
 constexpr auto WINDOW_WIDTH = SCREEN_WIDTH * TILE_SIZE;
 constexpr auto WINDOW_HEIGHT = SCREEN_WIDTH * TILE_SIZE;
+
 constexpr auto MAX_USER = 10000;
+constexpr auto MAX_NPC = 5000;
 
 #define DRAW(t) CGameFramework::GetInst()->Render(t);
 

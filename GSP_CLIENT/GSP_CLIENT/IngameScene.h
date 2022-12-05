@@ -1,7 +1,7 @@
 #pragma once
 #include "Scene.h"
 
-class CPlayer;
+class CObject;
 
 class CIngameScene : public CScene
 {
