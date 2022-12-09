@@ -127,7 +127,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\protocol.h" />
+    <ClInclude Include="..\..\..\protocol_2022.h" />
     <ClInclude Include="DataBase.h" />
     <ClInclude Include="expover.h" />
     <ClInclude Include="function.h" />

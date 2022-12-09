@@ -11,8 +11,11 @@ public:
 	short m_exp;
 	short m_level;
 	short m_hp;
+	short m_maxhp;
 
 	mutex m_s_lock;
 	atomic<S_STATE> m_state;
+
+	unsigned m_move_time;
 };
 

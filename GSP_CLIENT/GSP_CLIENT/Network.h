@@ -36,6 +36,13 @@ public:
 	void ProcessPacket(char* packet);
 	void SendPacket(void* packet);
 
+	void SendLoginPacket(char* name);
+	void SendLogoutPacket();
+	void SendMovePacket(int direction);
+	void SendAttackPacket();
+	void SendChatPacket(char* mess);
+	void SendTeleportPacket();
+
 	void SetHostID(short id) { m_hostID = id; }
 };
 

@@ -27,26 +27,10 @@ void Initialize()
 		SharedData::g_clients[i] = new CNPC;
 	}
 	memset(SharedData::g_map, true, sizeof(SharedData::g_map));
+	InitializeMap();
+	
 	SharedData::g_db.DB_Initialize();
 
-	// 서버 지형 -> 진짜 좀 ..
-	for (short i = 0; i < W_HEIGHT; ++i) {
-		for (short j = 0; j < W_WIDTH; ++j) {
-			if (i % 5 == 0) {
-				switch (j % 20) {
-				case 3:
-				case 4:
-				case 5:
-				case 6:
-				case 16:
-				case 17:
-				case 18:
-					SharedData::g_map[j][i] = false;
-					break;
-				}
-			}
-		}
-	}
 
 	InitializeNPC();
 }
@@ -69,7 +53,6 @@ void ProcessPacket(int c_id, char* packet)
 	case CS_LOGIN:
 	{
 		CS_LOGIN_PACKET* p = reinterpret_cast<CS_LOGIN_PACKET*>(packet);
-
 		for (auto& cl : SharedData::g_clients) {
 			if (cl->m_id > MAX_USER) continue;
 			if (cl->m_id == c_id) continue;
@@ -98,7 +81,7 @@ void ProcessPacket(int c_id, char* packet)
 		int direction = p->direction;
 		unsigned char move_time = p->move_time;
 		CPlayer* player = reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id]);
-		if (player->m_move_cooltime + 1s < chrono::system_clock::now()) {
+		if (player->m_move_cooltime + 0s < chrono::system_clock::now()) {
 			player->Move(direction, move_time);
 			player->m_move_cooltime = chrono::system_clock::now();
 		}
@@ -112,6 +95,22 @@ void ProcessPacket(int c_id, char* packet)
 			player->Attack();
 			player->m_attack_cooltime = chrono::system_clock::now();
 		}
+	}
+	break;
+	case CS_LOGOUT:
+	{
+		cout << "LOGOUT - [" << c_id << "]\n";
+		reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id])->Disconnect();
+	}
+	break;
+	case CS_CHAT:
+	{	
+		CS_CHAT_PACKET* p = reinterpret_cast<CS_CHAT_PACKET*>(packet);
+		char mess[CHAT_SIZE];
+		strncpy_s(mess, p->mess, CHAT_SIZE);
+		cout << mess << endl;
+		CPlayer* player = reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id]);
+		player->Chatting(mess);
 	}
 	break;
 	}
@@ -198,6 +197,7 @@ void WorkerThread()
 			player->m_s_lock.unlock();
 			SharedData::g_sector.InsertSector(client_id, player->m_x, player->m_y);
 			player->SendLoginOkPacket();
+			player->SendLoginInfoPacket();
 			for (auto& pl : SharedData::g_clients) {
 				{
 					lock_guard<mutex> ll(pl->m_s_lock);
@@ -209,9 +209,9 @@ void WorkerThread()
 				SharedData::g_clients[client_id]->SendAddPlayerPacket(pl.m_id);*/
 				if (pl->m_id == client_id) continue;
 				if (false == can_see(client_id, pl->m_id)) continue;
-				if (is_pc(pl->m_id)) reinterpret_cast<CPlayer*>(pl)->SendAddPlayerPacket(client_id);
+				if (is_pc(pl->m_id)) reinterpret_cast<CPlayer*>(pl)->SendAddObjectPacket(client_id);
 				//else WakeUpNPC(pl->m_id, client_id);
-				player->SendAddPlayerPacket(pl->m_id);
+				player->SendAddObjectPacket(pl->m_id);
 			}
 			delete exp_over;
 		}
@@ -221,6 +221,7 @@ void WorkerThread()
 			CPlayer* player = reinterpret_cast<CPlayer*>(SharedData::g_clients[client_id]);	
 			SharedData::g_sector.InsertSector(client_id, player->m_x, player->m_y);
 			player->SendLoginOkPacket();
+			player->SendLoginInfoPacket();
 			for (auto& pl : SharedData::g_clients) {
 				{
 					lock_guard<mutex> ll(pl->m_s_lock);
@@ -228,9 +229,9 @@ void WorkerThread()
 				}
 				if (pl->m_id == client_id) continue;
 				if (false == can_see(client_id, pl->m_id)) continue;
-				if (is_pc(pl->m_id)) reinterpret_cast<CPlayer*>(pl)->SendAddPlayerPacket(client_id);
+				if (is_pc(pl->m_id)) reinterpret_cast<CPlayer*>(pl)->SendAddObjectPacket(client_id);
 				//else WakeUpNPC(pl->m_id, client_id);
-				player->SendAddPlayerPacket(pl->m_id);
+				player->SendAddObjectPacket(pl->m_id);
 			}
 		}
 		break;

@@ -93,7 +93,20 @@ void CObjectMgr::AddObject(char* name, short id, short x, short y)
 		players[id]->Move(x, y);
 	}
 	else {
-		npc[id] = new CObject(*npcTex1, 0, 0);
+		char* type = strtok(name, "_");
+
+		if (strcmp(type, "00") == 0) {
+			npc[id] = new CObject(*npcTex1, 0, 0);
+		}
+		else if (strcmp(type, "01") == 0) {
+			npc[id] = new CObject(*npcTex2, 0, 0);
+		}
+		else if (strcmp(type, "10") == 0) {
+			npc[id] = new CObject(*npcTex3, 0, 0);
+		}
+		else if (strcmp(type, "11") == 0) {
+			npc[id] = new CObject(*npcTex4, 0, 0);
+		}
 		npc[id]->SetName(name);
 		npc[id]->Move(x, y);
 	}
@@ -123,7 +136,7 @@ void CObjectMgr::SetAvatar(short id)
 	players[m_avatarID] = new CObject(*playerTexAvatar, 0, 0);
 }
 
-void CObjectMgr::GetAvatarInfo(char* name, short& x, short& y, short& exp, short& level, short& hp)
+void CObjectMgr::GetAvatarInfo(char* name, short& x, short& y, short& exp, short& level, short& hp, short& maxhp)
 {
 	strncpy_s(name, NAME_SIZE, players[m_avatarID]->GetName(), NAME_SIZE);
 	x = players[m_avatarID]->GetX();
@@ -131,4 +144,5 @@ void CObjectMgr::GetAvatarInfo(char* name, short& x, short& y, short& exp, short
 	exp = players[m_avatarID]->GetExp();
 	level = players[m_avatarID]->GetLevel();
 	hp = players[m_avatarID]->GetHp();
+	maxhp = players[m_avatarID]->GetMaxHp();
 }

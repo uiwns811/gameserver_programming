@@ -2,6 +2,13 @@
 #include "Player.h"
 #include "function.h"
 
+unordered_set<short> CSector::GetSector(short id, short x, short y)
+{
+	short sctrX = x / SECTOR_SIZE;
+	short sctrY = y / SECTOR_SIZE;
+	return m_sectorObjList[sctrX][sctrY];
+}
+
 void CSector::UpdateSector(short id, short x, short y, short oldx, short oldy)
 {
 	short sctrX = x / SECTOR_SIZE;

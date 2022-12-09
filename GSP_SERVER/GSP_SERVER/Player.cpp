@@ -12,11 +12,12 @@ void CPlayer::Initialize()
 	m_name[0] = 0;
 	m_prev_remain = 0;
 
-	m_x = rand() % W_WIDTH;
-	m_y = rand() % W_HEIGHT;
+	m_x = 2;
+	m_y = 2;
 	m_exp = START_EXP;
 	m_level = 1;
 	m_hp = MAX_HP;
+	m_maxhp = MAX_HP;
 	m_requiredExp = START_EXP * 2;
 	m_is_active = false;
 	m_is_attack = false;
@@ -34,7 +35,7 @@ void CPlayer::Disconnect()
 		CPlayer* cl = reinterpret_cast<CPlayer*>(SharedData::g_clients[id]);
 		if (cl->m_id == m_id) continue;
 		if (ST_INGAME != cl->m_state) continue;
-		cl->SendRemovePlayerPacket(m_id);
+		cl->SendRemoveObjectPacket(m_id);
 	}
 
 	m_s_lock.lock();
@@ -83,7 +84,6 @@ void CPlayer::Move(int direction, unsigned char move_time)
 
 		SharedData::g_sector.UpdateSector(m_id, x, y, oldX, oldY);
 		CheckViewList();
-		//player->SendMovePlayerPacket(c_id);
 	}
 }
 
@@ -150,7 +150,7 @@ void CPlayer::CheckViewList()
 
 	SharedData::g_sector.CreateNearList(near_list, m_id, m_x, m_y);
 	
-	SendMovePlayerPacket(m_id);
+	SendMoveObjectPacket(m_id);
 
 	for (auto& pl : near_list) {
 		if (is_pc(pl)) {
@@ -158,26 +158,39 @@ void CPlayer::CheckViewList()
 			cpl->m_vl_lock.lock();
 			if (cpl->m_viewlist.count(m_id)) {
 				cpl->m_vl_lock.unlock();
-				cpl->SendMovePlayerPacket(m_id);
+				cpl->SendMoveObjectPacket(m_id);
 			}
 			else {
 				cpl->m_vl_lock.unlock();
-				cpl->SendAddPlayerPacket(m_id);
+				cpl->SendAddObjectPacket(m_id);
 			}
 		}
 		//else WakeUpNPC(pl, m_id);
 
 		if (old_vlist.count(pl) == 0) {
-			SendAddPlayerPacket(pl);
+			SendAddObjectPacket(pl);
 		}
 	}
 
 	for (auto& pl : old_vlist) {
 		if (near_list.count(pl) == 0) {
-			SendRemovePlayerPacket(pl);
+			SendRemoveObjectPacket(pl);
 			if (is_pc(pl)) {
-				reinterpret_cast<CPlayer*>(SharedData::g_clients[pl])->SendRemovePlayerPacket(m_id);
+				reinterpret_cast<CPlayer*>(SharedData::g_clients[pl])->SendRemoveObjectPacket(m_id);
 			}
+		}
+	}
+}
+
+void CPlayer::Chatting(char* mess)
+{
+	m_vl_lock.lock();
+	unordered_set<short> vlist = m_viewlist;
+	m_vl_lock.unlock();
+
+	for (auto& pl : vlist) {
+		if (is_pc(pl)) {
+			reinterpret_cast<CPlayer*>(SharedData::g_clients[pl])->SendChatPacket(m_id, mess);
 		}
 	}
 }
@@ -185,33 +198,41 @@ void CPlayer::CheckViewList()
 void CPlayer::SendLoginOkPacket()
 {
 	SC_LOGIN_OK_PACKET p;
-	p.id = m_id;
 	p.size = sizeof(SC_LOGIN_OK_PACKET);
 	p.type = SC_LOGIN_OK;
-	p.x = m_x;
-	p.y = m_y;
-	p.exp = m_exp;
-	p.level = m_level;
-	p.hp = m_hp;
 	SendPacket(&p);
 }
 
 void CPlayer::SendLoginFailPacket()
 {
 	SC_LOGIN_FAIL_PACKET p;
-	p.id = m_id;
 	p.size = sizeof(SC_LOGIN_FAIL_PACKET);
 	p.type = SC_LOGIN_FAIL;
 	SendPacket(&p);
 }
 
-void CPlayer::SendAddPlayerPacket(short c_id)
+void CPlayer::SendLoginInfoPacket()
 {
-	SC_ADD_PLAYER_PACKET p;
+	SC_LOGIN_INFO_PACKET p;
+	p.size = sizeof(SC_LOGIN_INFO_PACKET);
+	p.type = SC_LOGIN_INFO;
+	p.id = m_id;
+	p.x = m_x;
+	p.y = m_y;
+	p.exp = m_exp;
+	p.level = m_level;
+	p.hp = m_hp;
+	p.max_hp = m_maxhp;
+	SendPacket(&p);
+}
+
+void CPlayer::SendAddObjectPacket(short c_id)
+{
+	SC_ADD_OBJECT_PACKET p;
 	p.id = c_id;
 	strcpy_s(p.name, SharedData::g_clients[c_id]->m_name);
 	p.size = sizeof(p);
-	p.type = SC_ADD_PLAYER;
+	p.type = SC_ADD_OBJECT;
 	p.x = SharedData::g_clients[c_id]->m_x;
 	p.y = SharedData::g_clients[c_id]->m_y;
 	m_vl_lock.lock();
@@ -220,19 +241,19 @@ void CPlayer::SendAddPlayerPacket(short c_id)
 	SendPacket(&p);
 }
 
-void CPlayer::SendMovePlayerPacket(short c_id)
+void CPlayer::SendMoveObjectPacket(short c_id)
 {
-	SC_MOVE_PLAYER_PACKET p;
+	SC_MOVE_OBJECT_PACKET p;
 	p.id = c_id;
-	p.size = sizeof(SC_MOVE_PLAYER_PACKET);
-	p.type = SC_MOVE_PLAYER;
-	p.x = reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id])->m_x;
-	p.y = reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id])->m_y;
-	p.move_time = reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id])->m_move_time;
+	p.size = sizeof(SC_MOVE_OBJECT_PACKET);
+	p.type = SC_MOVE_OBJECT;
+	p.x = SharedData::g_clients[c_id]->m_x;
+	p.y = SharedData::g_clients[c_id]->m_y;
+	p.move_time = SharedData::g_clients[c_id]->m_move_time;
 	SendPacket(&p);
 }
 
-void CPlayer::SendRemovePlayerPacket(short c_id)
+void CPlayer::SendRemoveObjectPacket(short c_id)
 {
 	m_vl_lock.lock();
 	if (m_viewlist.count(c_id)) {
@@ -246,10 +267,10 @@ void CPlayer::SendRemovePlayerPacket(short c_id)
 
 	//SharedData::g_sector.RemoveSector(c_id, SharedData::g_clients[c_id]->m_x, SharedData::g_clients[c_id]->m_y);
 
-	SC_REMOVE_PLAYER_PACKET p;
+	SC_REMOVE_OBJECT_PACKET p;
 	p.id = c_id;
-	p.size = sizeof(SC_REMOVE_PLAYER_PACKET);
-	p.type = SC_REMOVE_PLAYER;
+	p.size = sizeof(SC_REMOVE_OBJECT_PACKET);
+	p.type = SC_REMOVE_OBJECT;
 	SendPacket(&p);
 }
 
@@ -259,5 +280,15 @@ void CPlayer::SendAttackPlayerPacket(short c_id)
 	p.id = c_id;
 	p.size = sizeof(SC_ATTACK_PLAYER_PACKET);
 	p.type = SC_ATTACK_PLAYER;
+	SendPacket(&p);
+}
+
+void CPlayer::SendChatPacket(short c_id, char* mess)
+{
+	SC_CHAT_PACKET p;
+	p.id = c_id;
+	p.size = sizeof(SC_CHAT_PACKET);
+	p.type = SC_CHAT;
+	strncpy_s(p.mess, mess, CHAT_SIZE);
 	SendPacket(&p);
 }

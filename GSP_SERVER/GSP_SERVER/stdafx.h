@@ -13,7 +13,8 @@
 #include <concurrent_priority_queue.h>
 #include <sqlext.h> 
 #include <chrono>
-#include "..\..\protocol.h"
+#include <fstream>
+#include "..\..\protocol_2022.h"
 
 extern "C" {
 #include "include/lua.h"
@@ -26,10 +27,8 @@ extern "C" {
 #pragma comment (lib, "lua54.lib")
 
 using namespace std;
-constexpr short MAX_USER = 10000;
-constexpr short MAX_NPC = 5000;
 
-constexpr short MAX_HP = 200;
+constexpr short MAX_HP = 1000;
 constexpr short START_EXP = 100;
 
 enum COMP_TYPE { OP_ACCEPT, OP_RECV, OP_SEND, OP_DB_LOGIN_WITH_INFO, OP_DB_LOGIN_NO_INFO, OP_DB_UPDATE, OP_TICK };
@@ -37,6 +36,7 @@ enum EVENT_TYPE { EV_RANDOM_MOVE, EV_NPC_RUN, EV_DB_UPDATE, EV_TICK };
 enum S_STATE { ST_FREE, ST_ALLOC, ST_INGAME };
 enum NPC_ATTACK_TYPE { NPC_PEACE, NPC_AGRO };
 enum NPC_MOVE_TYPE { NPC_FIXED, NPC_LOAMING };
+enum NPC_STATE {IDLE, MOVE, ATTACK };
 
 class CObject;
 class CSector;

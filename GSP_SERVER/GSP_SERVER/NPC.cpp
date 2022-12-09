@@ -22,18 +22,52 @@ void CNPC::Move()
 	}
 }
 
+void CNPC::Attack()
+{
+	switch (m_attack_type) {
+	case NPC_PEACE:
+		break;
+	case NPC_AGRO:
+		if (Agro_IsInArea() == true) {
+			// 타겟을 찾아 갑니당
+		}
+		break;
+	}
+}
+
+bool CNPC::Agro_IsInArea()
+{
+	// 11x11 영역에 접근하면 쫓아오기
+	unordered_set<short> nearlist;
+	SharedData::g_sector.CreateNearList(nearlist, m_id, m_x, m_y);
+	for (auto& cl : nearlist) {
+		if (abs(SharedData::g_clients[m_id]->m_x - SharedData::g_clients[cl]->m_x) > 11) 
+			return false;
+		if (abs(SharedData::g_clients[m_id]->m_y - SharedData::g_clients[cl]->m_y) <= 11) {
+			m_target_id = cl;
+			return true;
+		}
+		else
+			return false;
+	}
+}
+
 void InitializeNPC()
 {
 	cout << "NPC Initialize Start" << endl;
 	for (int i = MAX_USER; i < MAX_USER + MAX_NPC; ++i) {
 		CNPC* npc = reinterpret_cast<CNPC*>(SharedData::g_clients[i]);
-		npc->m_x = rand() % 200;
-		npc->m_y = rand() % 200;
-		npc->m_id = i;
-		sprintf_s(npc->m_name, "NPC%d", i);
+		npc->m_x = rand() % W_WIDTH;
+		npc->m_y = rand() % W_HEIGHT;
 		npc->m_state = ST_INGAME;
-		npc->m_attack_type = NPC_AGRO;
-		npc->m_move_type = NPC_LOAMING;
+		npc->m_attack_type = (NPC_ATTACK_TYPE)(rand()%2);
+		npc->m_move_type = (NPC_MOVE_TYPE)(rand() % 2);
+		npc->m_id = i;
+
+		npc->m_target_id = -1;
+		npc->m_peace_is_attacked = false;
+
+		sprintf_s(npc->m_name, "%d%d_NPC%d", npc->m_attack_type, npc->m_move_type, i);
 		npc->m_is_run = false;
 
 		SharedData::g_sector.InsertSector(i, npc->m_x, npc->m_y);

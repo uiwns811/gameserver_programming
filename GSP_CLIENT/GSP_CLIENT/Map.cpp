@@ -8,33 +8,29 @@ void CMap::Init()
 	tileTex = new sf::Texture;
 	tileTex->loadFromFile("Resource/tilemap4.png");
 
-	ifstream in("Resource/MapInfo.txt");
-	if (in.fail())
+	ifstream fin("Resource/Map.txt");
+	if (fin.fail())
 	{
 		cout << "Map 파일을 열 수 없음" << endl;
 		exit(0);
 	}
 
-	for (short i = 0; i < W_HEIGHT; ++i) {
-		for (short j = 0; j < W_WIDTH; ++j) {
-			//int tileX, tileY;
-			//in >> tileX >> tileY;
-			switch (j % 20) {
-			case 3:
-			case 4:
-			case 5:
-			case 6:
-			case 16:
-			case 17:
-			case 18:
-				if (i % 5 == 0)
-					m_tilemap[j][i] = new CTile(*tileTex, 5 * TILE_HALF, 1 * TILE_HALF, j, i, false);
-				else 
-					m_tilemap[j][i] = new CTile(*tileTex, 1 * TILE_HALF, 1 * TILE_HALF, j, i, true);
-				break;
-			default:
-				m_tilemap[j][i] = new CTile(*tileTex, 1 * TILE_HALF, 1 * TILE_HALF, j, i, true);
-				break;
+	for (int i = 0; i < 200; i++) {
+		for (int j = 0; j < 200; j++) {
+			char s_tileInfo[NAME_SIZE];
+			fin >> s_tileInfo;
+			int tileInfo = stoi(s_tileInfo);
+
+			short top = tileInfo / 23;
+			short left = tileInfo - 1 - (top * 23);
+
+			for (int yCnt = 0; yCnt < 10; yCnt++) {
+				for (int xCnt = 0; xCnt < 10; xCnt++) {
+					if (tileInfo == 48)
+						m_tilemap[j + 200 * xCnt][i + 200 * yCnt] = new CTile(*tileTex, left * TILE_HALF, top * TILE_HALF, j + 200 * xCnt, i + 200 * yCnt, true);
+					else
+						m_tilemap[j + 200 * xCnt][i + 200 * yCnt] = new CTile(*tileTex, left * TILE_HALF, top * TILE_HALF, j + 200 * xCnt, i + 200 * yCnt, false);
+				}
 			}
 		}
 	}

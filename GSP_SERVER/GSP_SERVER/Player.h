@@ -13,8 +13,6 @@ public:
 
 	atomic_bool m_is_active;
 
-	unsigned m_move_time;
-
 	std::unordered_set<short> m_viewlist;
 	mutex m_vl_lock;
 
@@ -55,12 +53,16 @@ public:
 	void Recv();
 
 	void CheckViewList();
+
+	void Chatting(char* mess);
 	
 	void SendLoginOkPacket();
 	void SendLoginFailPacket();
-	void SendAddPlayerPacket(short c_id);
-	void SendMovePlayerPacket(short c_id);
-	void SendRemovePlayerPacket(short c_id);
+	void SendLoginInfoPacket();
+	void SendAddObjectPacket(short c_id);
+	void SendMoveObjectPacket(short c_id);
+	void SendRemoveObjectPacket(short c_id);
 	void SendAttackPlayerPacket(short c_id);
+	void SendChatPacket(short c_id, char* mess);
 };
 

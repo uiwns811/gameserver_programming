@@ -25,6 +25,7 @@ private:
 	short m_exp;
 	short m_level;
 	short m_hp;
+	short m_maxhp;
 
 	unsigned m_move_time;
 
@@ -89,8 +90,10 @@ public:
 	void SetExp(short exp) { m_exp = exp; }
 	void SetLevel(short level) { m_level = level; }
 	void SetHp(short hp) { m_hp = hp; }
+	void SetMaxHp(short maxhp) { m_maxhp = maxhp; }
 	void SetX(short x) { m_x = x; }
 	void SetY(short y) { m_y = y; }
+	void SetStat(short exp, short level, short hp, short maxhp) { m_exp = exp; m_level = level; m_hp = hp; m_maxhp = maxhp; }
 
 	char* GetName() { return m_name; }
 	short GetId() { return m_id; }
@@ -99,6 +102,7 @@ public:
 	short GetExp() { return m_exp; }
 	short GetLevel() { return m_level; }
 	short GetHp() { return m_hp; }
+	short GetMaxHp() { return m_maxhp; }
 
 	void Move(short x, short y) { m_x = x; m_y = y; }
 	void Move(char direction);

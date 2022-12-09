@@ -19,13 +19,14 @@ int main()
 		sf::Event event;
 		while (window.pollEvent(event))
 		{
-			ImGui::SFML::ProcessEvent(event);
-
+			ImGui::SFML::ProcessEvent(window, event);
 			switch (event.type) {
 			case sf::Event::Closed:
+				CNetwork::GetInst()->SendLogoutPacket();
 				window.close();
 				break;
-			case sf::Event::KeyPressed:
+			case sf::Event::KeyPressed: 
+			{
 				int direction = -1;
 				switch (event.key.code) {
 				case sf::Keyboard::Left:
@@ -41,28 +42,27 @@ int main()
 					direction = 1;
 					break;
 				case sf::Keyboard::A:
-					CS_ATTACK_PACKET p;
-					p.size = sizeof(CS_MOVE_PACKET);
-					p.type = CS_ATTACK;
-					CNetwork::GetInst()->SendPacket(&p);
+					CNetwork::GetInst()->SendAttackPacket();
 					break;
 				case sf::Keyboard::Escape:
+					CNetwork::GetInst()->SendLogoutPacket();
 					window.close();
 					break;
 				}
 				if (-1 != direction) {
-					CS_MOVE_PACKET p;
-					p.size = sizeof(CS_MOVE_PACKET);
-					p.type = CS_MOVE;
-					p.direction = direction;
-					CNetwork::GetInst()->SendPacket(&p);
+					CNetwork::GetInst()->SendMovePacket(direction);
 				}
 			}
+			break;
+			}
 		}
+
+		CGameGUI::GetInst()->Update();
 		window.clear();
 		CGameFramework::GetInst()->Update();
 		window.display();
 	}
+	CNetwork::GetInst()->SendLogoutPacket();
 	CGameFramework::GetInst()->CleanUp();
 	return 0;
 }
