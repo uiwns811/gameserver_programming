@@ -7,9 +7,9 @@ class CObject;
 class CObjectMgr : public TSingleton<CObjectMgr>
 {
 private:
-	std::unordered_map<short, CObject*> players;
-	std::unordered_map<short, CObject*> npc;
-	short m_avatarID = -1;
+	std::unordered_map<int, CObject*> players;
+	std::unordered_map<int, CObject*> npc;
+	int m_avatarID = -1;
 
 	sf::Texture* playerTexAvatar;
 	sf::Texture* playerTex;
@@ -27,24 +27,26 @@ public:
 	void Render();
 	void CleanUp();
 
-	void Move(short id, short x, short y);		
+	void Move(int id, short x, short y);
 	void Move(char direction);
 
-	void AddObject(char* name, short id, short x, short y);
-	void RemoveObject(short id);
+	void AddObject(char* name, int id, short x, short y);
+	void RemoveObject(int id);
 
-	void Attack(short id);
+	void Attack(int id);
 
-	void SetExp(short id, short exp) { players[id]->SetExp(exp); }
-	void SetLevel(short id, short level) { players[id]->SetLevel(level); }
-	void SetHP(short id, short hp) { players[id]->SetHp(hp); }
-	void SetMaxHp(short id, short maxhp) { players[id]->SetMaxHp(maxhp); }
-	void SetStat(short id, short exp, short level, short hp, short maxhp) { players[id]->SetStat(exp, level, hp, maxhp); }
+	void SetExp(int id, int exp) { players[id]->SetExp(exp); }
+	void SetLevel(int id, int level) { players[id]->SetLevel(level); }
+	void SetHP(int id, int hp) { players[id]->SetHp(hp); }
+	void SetMaxHp(int id, int maxhp) { players[id]->SetMaxHp(maxhp); }
+	void SetStat(int id, int exp, int level, int hp, int maxhp) { players[id]->SetStat(exp, level, hp, maxhp); }
 
-	void SetAvatar(short id);
+	void SetAvatar(int id);
 
-	short GetAvatarID() { return m_avatarID; }
-	void GetAvatarInfo(char* name, short& x, short& y, short& exp, short& level, short& hp, short& maxhp);
+	int GetAvatarID() { return m_avatarID; }
+	void GetAvatarInfo(char* name, short& x, short& y, int& exp, int& level, int& hp, int& maxhp);
+
+	char* GetName(int id) { return players[id]->GetName(); }
 
 	void GetTLPos(short& left, short& top) { left = m_left; top = m_top; }
 };

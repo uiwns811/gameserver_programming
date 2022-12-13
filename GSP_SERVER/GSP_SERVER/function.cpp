@@ -36,8 +36,8 @@ void InitializeMap()
 		exit(0);
 	}
 
-	for (short i = 0; i < 200; ++i) {
-		for (short j = 0; j < 200; ++j) {
+	for (int i = 0; i < 200; ++i) {
+		for (int j = 0; j < 200; ++j) {
 			char s_tileInfo[NAME_SIZE];
 			fin >> s_tileInfo;
 			int tileInfo = stoi(s_tileInfo);
@@ -50,4 +50,17 @@ void InitializeMap()
 			}
 		}
 	}
+
+	cout << "Initialize Map Complete" << endl;
+}
+
+bool CanAttack(int from, int to)
+{
+	int x = SharedData::g_clients[from]->m_x;
+	int y = SharedData::g_clients[from]->m_y;
+	if ((SharedData::g_clients[to]->m_x == (x - 1)) && SharedData::g_clients[to]->m_y == y) return true;
+	else if ((SharedData::g_clients[to]->m_x == (x + 1)) && SharedData::g_clients[to]->m_y == y) return true;
+	else if (SharedData::g_clients[to]->m_x == x && SharedData::g_clients[to]->m_y == (y - 1)) return true;
+	else if (SharedData::g_clients[to]->m_x == x && SharedData::g_clients[to]->m_y == (y + 1)) return true;
+	else return false;
 }

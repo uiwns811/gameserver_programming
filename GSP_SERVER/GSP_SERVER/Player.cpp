@@ -2,6 +2,7 @@
 #include "Sector.h"
 #include "DataBase.h"
 #include "function.h"
+#include "NPC.h"
 
 void CPlayer::Initialize()
 {
@@ -26,7 +27,7 @@ void CPlayer::Initialize()
 void CPlayer::Disconnect()
 {
 	m_s_lock.lock();
-	unordered_set<short> vl = m_viewlist;
+	unordered_set<int> vl = m_viewlist;
 	m_s_lock.unlock();
 
 	for (auto& id : vl)
@@ -47,22 +48,6 @@ void CPlayer::Disconnect()
 	SharedData::g_db.Enqueue(m_id, m_name, DB_DISCONNECT);
 }
 
-void CPlayer::Tick()
-{
-	if (m_state != ST_INGAME) return;
-
-	if (m_recovery_cooltime + 5s < chrono::system_clock::now()) {
-		RecoverHp();
-		m_recovery_cooltime = chrono::system_clock::now();
-	}
-
-	CheckExpAndLevel();
-
-	if (m_hp <= 0) {
-		Respawn();
-	}
-}
-
 void CPlayer::Move(int direction, unsigned char move_time)
 {
 	short x = m_x;
@@ -76,11 +61,12 @@ void CPlayer::Move(int direction, unsigned char move_time)
 	case 3: if (x < W_WIDTH - 1) x++; break;
 	}
 
+	m_move_time = move_time;
+	
 	// 서버에서 한 번 더 체크 -> 갈 수 없는 곳에 갔으면 원위치로 이동
 	if (SharedData::g_map[x][y]) {
 		m_x = x;
 		m_y = y;
-		m_move_time = move_time;
 
 		SharedData::g_sector.UpdateSector(m_id, x, y, oldX, oldY);
 		CheckViewList();
@@ -89,6 +75,7 @@ void CPlayer::Move(int direction, unsigned char move_time)
 
 void CPlayer::CheckExpAndLevel()
 {
+	// 얘는 exp 건드릴때마다만 호출
 	if (m_exp >= m_requiredExp) {
 		m_level += 1;
 		m_requiredExp *= 2;
@@ -99,7 +86,11 @@ void CPlayer::Respawn()
 {
 	m_exp -= m_exp / 2;
 	m_hp = MAX_HP;
-	// 시작 위치로 옮기기
+	
+	m_x = 2;
+	m_y = 2;
+
+	SendStatChangePacket(m_id, m_exp, m_level, m_hp, m_maxhp);
 }
 
 void CPlayer::RecoverHp()
@@ -114,14 +105,61 @@ void CPlayer::RecoverHp()
 void CPlayer::Attack()
 {
 	m_vl_lock.lock();
-	unordered_set<short> vlist = m_viewlist;
+	unordered_set<int> vlist = m_viewlist;
 	m_vl_lock.unlock();
+
+	for (auto& cl : vlist) {
+		if (true == CanAttack(m_id, cl)) {
+			if (cl >= MAX_USER) {
+				CNPC* npc = reinterpret_cast<CNPC*>(SharedData::g_clients[cl]);
+				if (npc->m_attack_type == NPC_PEACE) {
+					npc->SetTarget(m_id);
+				}
+
+				// 플레이어 경험치 처리
+				int exp = npc->m_level * npc->m_level * 2;
+				if (npc->m_move_type == NPC_LOAMING) exp *= 2;
+				if (npc->m_attack_type == NPC_AGRO) exp *= 2;
+				m_exp += exp;
+				CheckExpAndLevel();
+				SendStatChangePacket(m_id, m_exp, m_level, m_hp, m_maxhp);
+
+				// 몬스터 hp 처리
+				int damage = m_level * m_level * 2;
+				if (npc->m_move_type == NPC_LOAMING) damage *= 2;
+				if (npc->m_attack_type == NPC_AGRO) damage *= 2;
+				npc->SetDamage(damage);
+
+				char mess[CHAT_SIZE];
+				sprintf_s(mess, "%s가 %s를 공격하여 %d의 경험치 획득!", m_name, npc->m_name, exp);
+				SendChatPacket(SYSTEM_CHAT_ID, mess);
+			}
+		}
+	}
+
+
 
 	SendAttackPlayerPacket(m_id);
 	for (auto& pl : vlist) {
 		if (is_pc(pl)) {
 			reinterpret_cast<CPlayer*>(SharedData::g_clients[pl])->SendAttackPlayerPacket(m_id);
 		}
+	}
+}
+
+void CPlayer::SetDamage(int damage)
+{
+	m_hp -= damage;
+	if (m_hp <= 0) {
+		// 플레이어 다이
+		char mess[CHAT_SIZE];
+		sprintf_s(mess, "die..");
+		SendChatPacket(SYSTEM_CHAT_ID, mess);
+		
+		Respawn();
+	}
+	else {
+		SendStatChangePacket(m_id, m_exp, m_level, m_hp, m_maxhp);
 	}
 }
 
@@ -143,10 +181,10 @@ void CPlayer::Recv()
 void CPlayer::CheckViewList()
 {
 	m_vl_lock.lock();
-	unordered_set<short> old_vlist = m_viewlist;
+	unordered_set<int> old_vlist = m_viewlist;
 	m_vl_lock.unlock();
 
-	unordered_set<short> near_list;
+	unordered_set<int> near_list;
 
 	SharedData::g_sector.CreateNearList(near_list, m_id, m_x, m_y);
 	
@@ -165,7 +203,7 @@ void CPlayer::CheckViewList()
 				cpl->SendAddObjectPacket(m_id);
 			}
 		}
-		//else WakeUpNPC(pl, m_id);
+		else WakeUpNPC(pl, m_id);
 
 		if (old_vlist.count(pl) == 0) {
 			SendAddObjectPacket(pl);
@@ -185,7 +223,7 @@ void CPlayer::CheckViewList()
 void CPlayer::Chatting(char* mess)
 {
 	m_vl_lock.lock();
-	unordered_set<short> vlist = m_viewlist;
+	unordered_set<int> vlist = m_viewlist;
 	m_vl_lock.unlock();
 
 	for (auto& pl : vlist) {
@@ -226,7 +264,7 @@ void CPlayer::SendLoginInfoPacket()
 	SendPacket(&p);
 }
 
-void CPlayer::SendAddObjectPacket(short c_id)
+void CPlayer::SendAddObjectPacket(int c_id)
 {
 	SC_ADD_OBJECT_PACKET p;
 	p.id = c_id;
@@ -241,7 +279,7 @@ void CPlayer::SendAddObjectPacket(short c_id)
 	SendPacket(&p);
 }
 
-void CPlayer::SendMoveObjectPacket(short c_id)
+void CPlayer::SendMoveObjectPacket(int c_id)
 {
 	SC_MOVE_OBJECT_PACKET p;
 	p.id = c_id;
@@ -253,7 +291,7 @@ void CPlayer::SendMoveObjectPacket(short c_id)
 	SendPacket(&p);
 }
 
-void CPlayer::SendRemoveObjectPacket(short c_id)
+void CPlayer::SendRemoveObjectPacket(int c_id)
 {
 	m_vl_lock.lock();
 	if (m_viewlist.count(c_id)) {
@@ -265,7 +303,7 @@ void CPlayer::SendRemoveObjectPacket(short c_id)
 	}
 	m_vl_lock.unlock();	
 
-	//SharedData::g_sector.RemoveSector(c_id, SharedData::g_clients[c_id]->m_x, SharedData::g_clients[c_id]->m_y);
+	SharedData::g_sector.RemoveSector(c_id, SharedData::g_clients[c_id]->m_x, SharedData::g_clients[c_id]->m_y);
 
 	SC_REMOVE_OBJECT_PACKET p;
 	p.id = c_id;
@@ -274,7 +312,7 @@ void CPlayer::SendRemoveObjectPacket(short c_id)
 	SendPacket(&p);
 }
 
-void CPlayer::SendAttackPlayerPacket(short c_id)
+void CPlayer::SendAttackPlayerPacket(int c_id)
 {
 	SC_ATTACK_PLAYER_PACKET p;
 	p.id = c_id;
@@ -283,7 +321,7 @@ void CPlayer::SendAttackPlayerPacket(short c_id)
 	SendPacket(&p);
 }
 
-void CPlayer::SendChatPacket(short c_id, char* mess)
+void CPlayer::SendChatPacket(int c_id, char* mess)
 {
 	SC_CHAT_PACKET p;
 	p.id = c_id;
@@ -291,4 +329,28 @@ void CPlayer::SendChatPacket(short c_id, char* mess)
 	p.type = SC_CHAT;
 	strncpy_s(p.mess, mess, CHAT_SIZE);
 	SendPacket(&p);
+}
+
+void CPlayer::SendStatChangePacket(int c_id, int exp, int level, int hp, int maxhp)
+{
+	SC_STAT_CHANGE_PACKET p;
+	p.size = sizeof(SC_STAT_CHANGE_PACKET);
+	p.type = SC_STAT_CHANGE;
+	p.id = c_id;
+	p.exp = exp;
+	p.level = level;
+	p.hp = hp;
+	p.max_hp = maxhp;
+	SendPacket(&p);
+}
+
+void CPlayer::Teleport()
+{
+	short x = m_x;
+	short y = m_y;
+	m_x = rand() % W_WIDTH;
+	m_y = rand() % W_HEIGHT;
+
+	SharedData::g_sector.UpdateSector(m_id, m_x, m_y, x, y);
+	CheckViewList();
 }

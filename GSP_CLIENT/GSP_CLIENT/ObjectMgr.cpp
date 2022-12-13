@@ -16,21 +16,20 @@ void CObjectMgr::Init()
 	npcTex2->loadFromFile("Resource/Monster2.png");
 	npcTex3->loadFromFile("Resource/Monster3.png");
 	npcTex4->loadFromFile("Resource/Monster4.png");
-
-	//for (int i = 0; i < MAX_USER; ++i) {
-	//	players[i] = new CObject(*playerTex, 0, 0);
-	//}
 }
 
 void CObjectMgr::Render()
 {
 	for (auto& p : players) {
+		if (p.first == m_avatarID) continue;
 		p.second->Render(m_left, m_top);
 	}
 
 	for (auto& n : npc) {
 		n.second->Render(m_left, m_top);
 	}
+
+	players[m_avatarID]->Render(m_left, m_top);
 }
 
 void CObjectMgr::CleanUp()
@@ -43,7 +42,7 @@ void CObjectMgr::CleanUp()
 	delete npcTex4;
 }
 
-void CObjectMgr::Move(short id, short x, short y)
+void CObjectMgr::Move(int id, short x, short y)
 {
 	if (id < MAX_USER)
 		players[id]->Move(x, y);
@@ -73,7 +72,7 @@ void CObjectMgr::Move(char direction)
 	if (m_top > W_HEIGHT - SCREEN_HEIGHT) m_top = W_HEIGHT - SCREEN_HEIGHT;
 }
 
-void CObjectMgr::AddObject(char* name, short id, short x, short y)
+void CObjectMgr::AddObject(char* name, int id, short x, short y)
 {
 	if (id == m_avatarID)
 	{
@@ -113,7 +112,7 @@ void CObjectMgr::AddObject(char* name, short id, short x, short y)
 	
 }
 
-void CObjectMgr::RemoveObject(short id)
+void CObjectMgr::RemoveObject(int id)
 {
 	if (id < MAX_USER) {
 		players.erase(id);
@@ -123,20 +122,20 @@ void CObjectMgr::RemoveObject(short id)
 	}
 }
 
-void CObjectMgr::Attack(short id)
+void CObjectMgr::Attack(int id)
 {
 	if (id > MAX_USER) return;
 	players[id]->SetAttack(true);
 	players[id]->SetAttackTime(chrono::system_clock::now());
 }
 
-void CObjectMgr::SetAvatar(short id)
+void CObjectMgr::SetAvatar(int id)
 {
 	m_avatarID = id; 
 	players[m_avatarID] = new CObject(*playerTexAvatar, 0, 0);
 }
 
-void CObjectMgr::GetAvatarInfo(char* name, short& x, short& y, short& exp, short& level, short& hp, short& maxhp)
+void CObjectMgr::GetAvatarInfo(char* name, short& x, short& y, int& exp, int& level, int& hp, int& maxhp)
 {
 	strncpy_s(name, NAME_SIZE, players[m_avatarID]->GetName(), NAME_SIZE);
 	x = players[m_avatarID]->GetX();

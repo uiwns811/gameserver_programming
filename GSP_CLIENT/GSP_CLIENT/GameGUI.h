@@ -12,15 +12,12 @@ public:
 	void ShowUserInfo();
 	void ShowChatting();
 	
-	void AddChat(char* mess) { m_chat_data.push(mess); }
+	vector<CHAT> m_chat_data;
 
 private:
 	sf::RenderWindow* m_window;
 
 	bool m_bChat = false;
-	queue<char*> m_chat_data;
-
-
 	sf::Clock m_deltaClock;
 };
 

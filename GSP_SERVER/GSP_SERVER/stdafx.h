@@ -28,21 +28,24 @@ extern "C" {
 
 using namespace std;
 
-constexpr short MAX_HP = 1000;
-constexpr short START_EXP = 100;
+constexpr int MAX_HP = 1000;
+constexpr int START_EXP = 100;
+constexpr int AGRO_AREA = 5;
+constexpr int LOAMING_AREA = 10;
 
-enum COMP_TYPE { OP_ACCEPT, OP_RECV, OP_SEND, OP_DB_LOGIN_WITH_INFO, OP_DB_LOGIN_NO_INFO, OP_DB_UPDATE, OP_TICK };
-enum EVENT_TYPE { EV_RANDOM_MOVE, EV_NPC_RUN, EV_DB_UPDATE, EV_TICK };
+enum COMP_TYPE { OP_ACCEPT, OP_RECV, OP_SEND, OP_DB_LOGIN_WITH_INFO, OP_DB_LOGIN_NO_INFO, OP_DB_UPDATE, OP_PLAYER_HEAL, OP_RESPAWN, OP_NPC_AI};
+enum EVENT_TYPE { EV_DB_UPDATE, EV_PLAYER_HEAL, EV_RESPAWN, EV_NPC_AI};
 enum S_STATE { ST_FREE, ST_ALLOC, ST_INGAME };
 enum NPC_ATTACK_TYPE { NPC_PEACE, NPC_AGRO };
 enum NPC_MOVE_TYPE { NPC_FIXED, NPC_LOAMING };
-enum NPC_STATE {IDLE, MOVE, ATTACK };
+enum NPC_STATE {NPC_IDLE, NPC_MOVE, NPC_ATTACK };
 
 class CObject;
 class CSector;
 class EXP_OVER;
 class CDataBase;
 struct TIMER_EVENT;
+
 namespace SharedData {
 	extern array<CObject*, MAX_USER + MAX_NPC> g_clients;
 	extern SOCKET g_listen_socket;
@@ -54,3 +57,14 @@ namespace SharedData {
 	extern CDataBase g_db;
 	extern concurrency::concurrent_priority_queue<TIMER_EVENT> timer_queue;
 }
+
+struct TIMER_EVENT {
+	int obj_id;
+	chrono::system_clock::time_point wakeup_time;
+	EVENT_TYPE event_id;
+	int target_id;
+	constexpr bool operator < (const TIMER_EVENT& L) const
+	{
+		return (wakeup_time > L.wakeup_time);
+	}
+};

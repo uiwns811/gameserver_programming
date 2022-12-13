@@ -14,7 +14,7 @@
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
     <Filter Include="헤더 파일\lua">
-      <UniqueIdentifier>{651feaec-e1a1-498e-93d6-a072e3a3624f}</UniqueIdentifier>
+      <UniqueIdentifier>{542c8a96-0be3-4c87-a1be-88c429876ce0}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -39,6 +39,15 @@
     <ClInclude Include="Timer.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="Object.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="function.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\protocol_2022.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
     <ClInclude Include="include\lauxlib.h">
       <Filter>헤더 파일\lua</Filter>
     </ClInclude>
@@ -53,15 +62,6 @@
     </ClInclude>
     <ClInclude Include="include\lualib.h">
       <Filter>헤더 파일\lua</Filter>
-    </ClInclude>
-    <ClInclude Include="Object.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="function.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\protocol_2022.h">
-      <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -91,13 +91,13 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Library Include="lua54.lib">
-      <Filter>헤더 파일\lua</Filter>
-    </Library>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="npc.lua">
       <Filter>리소스 파일</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="lua54.lib">
+      <Filter>헤더 파일\lua</Filter>
+    </Library>
   </ItemGroup>
 </Project>

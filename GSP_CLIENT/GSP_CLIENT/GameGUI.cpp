@@ -7,7 +7,13 @@ void CGameGUI::Init(sf::RenderWindow& window)
 {
 	m_window = &window;
 	ImGui::SFML::Init(*m_window);
-	ImGuiIO& io = ImGui::GetIO();
+
+	//ImGuiIO& IO = ImGui::GetIO();
+
+	//IO.Fonts->Clear();
+	//IO.Fonts->AddFontFromFileTTF("Resource/cour.ttf", 12.f, NULL, IO.Fonts->GetGlyphRangesKorean());
+
+	//ImGui::SFML::UpdateFontTexture();
 }
 
 void CGameGUI::Update()
@@ -36,7 +42,8 @@ void CGameGUI::ShowUserInfo()
 	ImGui::Begin("User Information");
 	
 	char name[NAME_SIZE];
-	short x, y, exp, level, hp, maxhp;
+	short x, y;
+	int exp, level, hp, maxhp;
 	CObjectMgr::GetInst()->GetAvatarInfo(name, x, y, exp, level, hp, maxhp);
 	ImGui::Text("name : %s", &name);
 	ImGui::Text("pos : (%d, %d)", x, y);
@@ -49,19 +56,24 @@ void CGameGUI::ShowUserInfo()
 
 void CGameGUI::ShowChatting()
 {
-	ImGui::SetNextWindowPos(ImVec2(50, 900));
+	ImGui::SetNextWindowPos(ImVec2(50, 950));
+	ImGui::SetNextWindowSize(ImVec2(400, 300));
 
 	ImGui::Begin("CHATTING");
-	ImGui::BeginChild("chatting", ImVec2(10, 30));
+	ImGui::BeginChild("chatting", ImVec2(400, 200));
 
-	if (m_chat_data.empty() == false)
-	{
-		char* mess = m_chat_data.front();
-		cout << mess << endl;
-		ImGui::Text(mess);
-		m_chat_data.pop();
+	for (auto& chat : m_chat_data) {
+		string name(chat.name);
+		string mess(chat.mess);
+		string message = "[" + name + "] : " + mess;
+		ImGui::Text(message.c_str());
+
+		if (m_chat_data.size() > 10)
+			m_chat_data.erase(m_chat_data.begin());
 	}
 	ImGui::EndChild();
+
+	ImGui::Dummy(ImVec2(0, 0.5));
 
 	static char sendMessage[CHAT_SIZE] = { 0 };
 
@@ -82,16 +94,15 @@ void CGameGUI::ShowChatting()
 		}
 		else {
 			m_bChat = false;
-			//ImGui::SetItemDefaultFocus();
+			ImGui::SetItemDefaultFocus();
 
 			ImGui::SetKeyboardFocusHere(-1);
 		}
 	}
 
 	if (ImGui::InputText("##ChatMsg", sendMessage, CHAT_SIZE)) {
-		cout << sendMessage << endl;
+
 	}
-	ImGui::ShowDebugLogWindow();
 
 	ImGui::End();
 }

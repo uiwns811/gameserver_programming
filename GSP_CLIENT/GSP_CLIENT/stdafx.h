@@ -37,6 +37,7 @@ using namespace std;
 #include <fstream>
 #include <chrono>
 #include <queue>
+#include <string>
 #include <string.h>
 
 #include "..\..\protocol_2022.h"
@@ -54,6 +55,11 @@ enum class SCENE_TYPE {
 	LOGIN,
 	INGAME,
 	END,
+};
+
+struct CHAT {
+	char name[NAME_SIZE];
+	char mess[CHAT_SIZE];
 };
 
 template<typename T>

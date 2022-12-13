@@ -6,11 +6,11 @@ class CNPC
 private:
 	bool m_bActive;
 	char m_name[NAME_SIZE];
-	short m_id;
+	int m_id;
 	short m_x;
 	short m_y;
-	short m_level;
-	short m_hp;
+	int m_level;
+	int m_hp;
 
 	unsigned m_move_time;
 
@@ -64,17 +64,17 @@ public:
 	void SetTexture(sf::Texture& t, int left, int top) { m_sprite.setTexture(t); m_sprite.setTextureRect(sf::IntRect(left, top, TILE_SIZE, TILE_SIZE)); }
 	void SetActive(bool bTrue) { m_bActive = bTrue; }
 	void SetName(char* name) { strncpy_s(m_name, name, NAME_SIZE); }
-	void SetId(short id) { m_id = id; }
-	void SetHp(short hp) { m_hp = hp; }
+	void SetId(int id) { m_id = id; }
+	void SetHp(int hp) { m_hp = hp; }
 	void SetX(short x) { m_x = x; }
 	void SetY(short y) { m_y = y; }
 
 	char* GetName() { return m_name; }
-	short GetId() { return m_id; }
-	short GetX() { return m_x; }
-	short GetY() { return m_y; }
-	short GetLevel() { return m_level; }
-	short GetHp() { return m_hp; }
+	int GetId() { return m_id; }
+	int GetX() { return m_x; }
+	int GetY() { return m_y; }
+	int GetLevel() { return m_level; }
+	int GetHp() { return m_hp; }
 
 	void Move(short x, short y) { m_x = x; m_y = y; }
 	void Attack(short x, short y);

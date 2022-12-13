@@ -31,20 +31,7 @@ void Initialize()
 	
 	SharedData::g_db.DB_Initialize();
 
-
 	InitializeNPC();
-}
-
-void do_tick()
-{
-	for (auto& c : SharedData::g_clients) {
-		if (c->m_id < MAX_USER) {
-			reinterpret_cast<CPlayer*>(c)->Tick();
-		}
-		else {
-			reinterpret_cast<CNPC*>(c)->Tick();
-		}
-	}
 }
 
 void ProcessPacket(int c_id, char* packet)
@@ -113,6 +100,13 @@ void ProcessPacket(int c_id, char* packet)
 		player->Chatting(mess);
 	}
 	break;
+	case CS_TELEPORT:
+	{
+		CS_TELEPORT_PACKET* p = reinterpret_cast<CS_TELEPORT_PACKET*>(packet);
+		CPlayer* player = reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id]);
+		player->Teleport();
+	}
+	break;
 	}
 }
 
@@ -124,7 +118,7 @@ void WorkerThread()
 		WSAOVERLAPPED* over = nullptr;
 		BOOL ret = GetQueuedCompletionStatus(SharedData::g_iocp, &num_bytes, &key, &over, INFINITE);
 		EXP_OVER* exp_over = reinterpret_cast<EXP_OVER*>(over);
-		short client_id = static_cast<short>(key);
+		int client_id = static_cast<int>(key);
 		if (FALSE == ret) {
 			if (exp_over->op_type == OP_ACCEPT) {
 				cout << "Accept Error" << endl;
@@ -140,7 +134,7 @@ void WorkerThread()
 		switch (exp_over->op_type) {
 		case OP_ACCEPT:
 		{
-			short new_id = get_new_client_id();
+			int new_id = get_new_client_id();
 			if (new_id != -1) {
 				CPlayer* player = reinterpret_cast<CPlayer*>(SharedData::g_clients[new_id]);
 				player->m_id = new_id;
@@ -203,16 +197,16 @@ void WorkerThread()
 					lock_guard<mutex> ll(pl->m_s_lock);
 					if (ST_INGAME != pl->m_state) continue;
 				}
-				/*if (pl->m_id == client_id) continue;
-				if (can_see(client_id, pl->m_id) == false) continue;
-				pl->SendAddPlayerPacket(client_id);
-				SharedData::g_clients[client_id]->SendAddPlayerPacket(pl.m_id);*/
 				if (pl->m_id == client_id) continue;
 				if (false == can_see(client_id, pl->m_id)) continue;
 				if (is_pc(pl->m_id)) reinterpret_cast<CPlayer*>(pl)->SendAddObjectPacket(client_id);
-				//else WakeUpNPC(pl->m_id, client_id);
+				else WakeUpNPC(pl->m_id, client_id);
 				player->SendAddObjectPacket(pl->m_id);
 			}
+			// 플레이어 힐 이벤트 추가
+			TIMER_EVENT ev{ key, chrono::system_clock::now() + 5s, EV_PLAYER_HEAL, 0 };
+			SharedData::timer_queue.push(ev);
+
 			delete exp_over;
 		}
 		break;
@@ -230,7 +224,7 @@ void WorkerThread()
 				if (pl->m_id == client_id) continue;
 				if (false == can_see(client_id, pl->m_id)) continue;
 				if (is_pc(pl->m_id)) reinterpret_cast<CPlayer*>(pl)->SendAddObjectPacket(client_id);
-				//else WakeUpNPC(pl->m_id, client_id);
+				else WakeUpNPC(pl->m_id, client_id);
 				player->SendAddObjectPacket(pl->m_id);
 			}
 		}
@@ -239,15 +233,74 @@ void WorkerThread()
 		{
 			SharedData::g_db.Enqueue(0, DB_UPDATE);
 
-			TIMER_EVENT ev{ key, chrono::system_clock::now() + 30s, EV_DB_UPDATE, 0 };			// 30초마다 저장
+			TIMER_EVENT ev{ key, chrono::system_clock::now() + 10s, EV_DB_UPDATE, 0 };			// 10초마다 저장
 			SharedData::timer_queue.push(ev);
 		}
 		break;
-		case OP_TICK:
+		case OP_PLAYER_HEAL:
 		{
-			do_tick();
-			TIMER_EVENT ev{ key, chrono::system_clock::now() + 1s, EV_TICK, 0 };
+			reinterpret_cast<CPlayer*>(SharedData::g_clients[key])->RecoverHp();
+			TIMER_EVENT ev{ key, chrono::system_clock::now() + 5s, EV_PLAYER_HEAL, 0 };
 			SharedData::timer_queue.push(ev);
+		}
+		break;
+		case OP_RESPAWN:
+		{
+			SharedData::g_sector.InsertSector(client_id, SharedData::g_clients[key]->m_x, SharedData::g_clients[key]->m_y);
+
+			bool old_state = false;
+			if (false == atomic_compare_exchange_strong(&reinterpret_cast<CNPC*>(SharedData::g_clients[key])->m_is_active, &old_state, true)) return;
+
+			SharedData::g_clients[key]->m_s_lock.lock();
+			SharedData::g_clients[key]->m_state = ST_INGAME;
+			SharedData::g_clients[key]->m_s_lock.unlock();
+			
+			bool keep_alive = false;
+			for (int j = 0; j < MAX_USER; ++j) {
+				if (SharedData::g_clients[j]->m_state != ST_INGAME) continue;
+				if (can_see(static_cast<int>(key), j)) {
+					keep_alive = true;
+					break;
+				}
+			}
+			if (true == keep_alive) {
+				reinterpret_cast<CNPC*>(SharedData::g_clients[key])->NPCAI();
+				TIMER_EVENT ev{ key, chrono::system_clock::now() + 1s, EV_NPC_AI, 0 };
+				SharedData::timer_queue.push(ev);
+			}
+			else {
+				bool old_state = true;
+				if (false == atomic_compare_exchange_strong(&reinterpret_cast<CNPC*>(SharedData::g_clients[key])->m_is_active, &old_state, false)) return;
+			}
+			delete exp_over;
+		}
+		break;
+		case OP_NPC_AI:
+		{
+			bool keep_alive = false;	
+			SharedData::g_clients[key]->m_s_lock.lock();
+			if (reinterpret_cast<CNPC*>(SharedData::g_clients[key])->m_state == ST_INGAME) {
+				SharedData::g_clients[key]->m_s_lock.unlock();
+				for (int j = 0; j < MAX_USER; ++j) {
+					if (SharedData::g_clients[j]->m_state != ST_INGAME) continue;
+					if (can_see(static_cast<int>(key), j)) {
+						keep_alive = true;
+						break;
+					}
+				}
+			}
+			else
+				SharedData::g_clients[key]->m_s_lock.unlock();
+			if (true == keep_alive) {
+				reinterpret_cast<CNPC*>(SharedData::g_clients[key])->NPCAI();
+				TIMER_EVENT ev{ key, chrono::system_clock::now() + 1s, EV_NPC_AI, 0 };	
+				SharedData::timer_queue.push(ev);
+			}
+			else {
+				bool old_state = true;
+				if (false == atomic_compare_exchange_strong(&reinterpret_cast<CNPC*>(SharedData::g_clients[key])->m_is_active, &old_state, false)) return;
+			}
+			delete exp_over;
 		}
 		break;
 		}

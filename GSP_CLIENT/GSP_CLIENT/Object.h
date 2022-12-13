@@ -19,13 +19,13 @@ class CObject
 private:
 	bool m_bActive;
 	char m_name[NAME_SIZE];
-	short m_id;
+	int m_id;
 	short m_x;
 	short m_y;
-	short m_exp;
-	short m_level;
-	short m_hp;
-	short m_maxhp;
+	int m_exp;
+	int m_level;
+	int m_hp;
+	int m_maxhp;
 
 	unsigned m_move_time;
 
@@ -52,7 +52,7 @@ public:
 		m_attack.Initialize();
 	}
 
-	CObject(char* name, short id, sf::Texture& t, int left, int top, int x, int y)
+	CObject(char* name, int id, sf::Texture& t, int left, int top, int x, int y)
 	{
 		m_bActive = false;
 		m_is_attack = false;
@@ -86,23 +86,23 @@ public:
 	void SetTexture(sf::Texture& t, int left, int top) { m_sprite.setTexture(t); m_sprite.setTextureRect(sf::IntRect(left, top, TILE_SIZE, TILE_SIZE)); }
 	void SetActive(bool bTrue) { m_bActive = bTrue; }
 	void SetName(char* name) { strncpy_s(m_name, name, NAME_SIZE); }
-	void SetId(short id) { m_id = id; }
-	void SetExp(short exp) { m_exp = exp; }
-	void SetLevel(short level) { m_level = level; }
-	void SetHp(short hp) { m_hp = hp; }
-	void SetMaxHp(short maxhp) { m_maxhp = maxhp; }
+	void SetId(int id) { m_id = id; }
+	void SetExp(int exp) { m_exp = exp; }
+	void SetLevel(int level) { m_level = level; }
+	void SetHp(int hp) { m_hp = hp; }
+	void SetMaxHp(int maxhp) { m_maxhp = maxhp; }
 	void SetX(short x) { m_x = x; }
 	void SetY(short y) { m_y = y; }
 	void SetStat(short exp, short level, short hp, short maxhp) { m_exp = exp; m_level = level; m_hp = hp; m_maxhp = maxhp; }
 
 	char* GetName() { return m_name; }
-	short GetId() { return m_id; }
+	int GetId() { return m_id; }
 	short GetX() { return m_x; }
 	short GetY() { return m_y; }
-	short GetExp() { return m_exp; }
-	short GetLevel() { return m_level; }
-	short GetHp() { return m_hp; }
-	short GetMaxHp() { return m_maxhp; }
+	int GetExp() { return m_exp; }
+	int GetLevel() { return m_level; }
+	int GetHp() { return m_hp; }
+	int GetMaxHp() { return m_maxhp; }
 
 	void Move(short x, short y) { m_x = x; m_y = y; }
 	void Move(char direction);

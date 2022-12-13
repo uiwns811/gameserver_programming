@@ -13,10 +13,10 @@ public:
 
 	atomic_bool m_is_active;
 
-	std::unordered_set<short> m_viewlist;
+	std::unordered_set<int> m_viewlist;
 	mutex m_vl_lock;
 
-	short m_requiredExp = START_EXP * 2;
+	int m_requiredExp = START_EXP * 2;
 
 	chrono::system_clock::time_point m_recovery_cooltime;
 	chrono::system_clock::time_point m_attack_cooltime;
@@ -39,13 +39,13 @@ public:
 
 	void Disconnect();
 
-	void Tick();
-
 	void CheckExpAndLevel();
 	void Respawn();
 	void RecoverHp();
 	void Attack();
 	void SetAttack(bool _bTrue) { m_is_attack = _bTrue; }
+
+	void SetDamage(int damage);
 
 	void Move(int direction, unsigned char move_time);
 
@@ -59,10 +59,13 @@ public:
 	void SendLoginOkPacket();
 	void SendLoginFailPacket();
 	void SendLoginInfoPacket();
-	void SendAddObjectPacket(short c_id);
-	void SendMoveObjectPacket(short c_id);
-	void SendRemoveObjectPacket(short c_id);
-	void SendAttackPlayerPacket(short c_id);
-	void SendChatPacket(short c_id, char* mess);
+	void SendAddObjectPacket(int c_id);
+	void SendMoveObjectPacket(int c_id);
+	void SendRemoveObjectPacket(int c_id);
+	void SendAttackPlayerPacket(int c_id);
+	void SendChatPacket(int c_id, char* mess);
+	void SendStatChangePacket(int c_id, int exp, int level, int hp, int maxhp);
+
+	void Teleport();
 };
 

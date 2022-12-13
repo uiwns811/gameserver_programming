@@ -84,45 +84,47 @@ void CNetwork::ProcessPacket(char* packet)
 	case SC_LOGIN_OK:
 	{
 		cout << "LOGIN OK!" << endl;
-		break;
+		CMap::GetInst()->SetRender(true);
 	}
+	break;
 	case SC_LOGIN_FAIL:
+	{
 		cout << "Login Fail!!" << endl;
 		CNetwork::GetInst()->SendLogoutPacket();
 		CGameFramework::GetInst()->CloseWindow();
-		break;
+	}
+	break;
 	case SC_LOGIN_INFO: 
 	{
 		SC_LOGIN_INFO_PACKET* my_packet = reinterpret_cast<SC_LOGIN_INFO_PACKET*>(packet);
-		short id = my_packet->id;
+		int id = my_packet->id;
 		short x = my_packet->x;
 		short y = my_packet->y;
-		short exp = my_packet->exp;
-		short level = my_packet->level;
-		short hp = my_packet->hp;
-		short maxhp = my_packet->max_hp;
+		int exp = my_packet->exp;
+		int level = my_packet->level;
+		int hp = my_packet->hp;
+		int maxhp = my_packet->max_hp;
 		CObjectMgr::GetInst()->SetAvatar(id);
 		CObjectMgr::GetInst()->AddObject(m_hostName, id, x, y);
 		CObjectMgr::GetInst()->SetStat(id, exp, level, hp, maxhp);
 		m_hostID = id;
-		CMap::GetInst()->SetRender(true);
-		break;
 	}
+	break;
 	case SC_ADD_OBJECT:
 	{
 		SC_ADD_OBJECT_PACKET* my_packet = reinterpret_cast<SC_ADD_OBJECT_PACKET*>(packet);
-		short id = my_packet->id;
+		int id = my_packet->id;
 		short x = my_packet->x;
 		short y = my_packet->y;
 		char name[NAME_SIZE];
 		strncpy_s(name, my_packet->name, NAME_SIZE);
 		CObjectMgr::GetInst()->AddObject(name, id, x, y);
-		break;
 	}
+	break;
 	case SC_MOVE_OBJECT:
 	{
 		SC_MOVE_OBJECT_PACKET* my_packet = reinterpret_cast<SC_MOVE_OBJECT_PACKET*>(packet);
-		short id = my_packet->id;
+		int id = my_packet->id;
 		short x = my_packet->x;
 		short y = my_packet->y;
 		CObjectMgr::GetInst()->Move(id, x, y);
@@ -132,29 +134,42 @@ void CNetwork::ProcessPacket(char* packet)
 	case SC_REMOVE_OBJECT:
 	{
 		SC_REMOVE_OBJECT_PACKET* my_packet = reinterpret_cast<SC_REMOVE_OBJECT_PACKET*>(packet);
-		short id = my_packet->id;
+		int id = my_packet->id;
 		CObjectMgr::GetInst()->RemoveObject(id);
-		break;
 	}
-
+	break;
 	case SC_ATTACK_PLAYER:
 	{
 		SC_ATTACK_PLAYER_PACKET* my_packet = reinterpret_cast<SC_ATTACK_PLAYER_PACKET*>(packet);
-		short id = my_packet->id;
+		int id = my_packet->id;
 		CObjectMgr::GetInst()->Attack(id);
-		break;
 	}
+	break;
 	case SC_CHAT:
 	{
 		SC_CHAT_PACKET* my_packet = reinterpret_cast<SC_CHAT_PACKET*>(packet);
-		short id = my_packet->id;
-		char mess[CHAT_SIZE];
-		strncpy_s(mess, my_packet->mess, CHAT_SIZE);
-		//m_chat_data.emplace_back(mess);
-		cout << mess << endl;
-		CGameGUI::GetInst()->AddChat(mess);
-		break;
+		int id = my_packet->id;
+		CHAT chat;
+		if (id == SYSTEM_CHAT_ID) 
+			memcpy(chat.name, "SYSTEM", NAME_SIZE);
+		else 
+			memcpy(chat.name, CObjectMgr::GetInst()->GetName(id), NAME_SIZE);
+		memcpy(chat.mess, my_packet->mess, CHAT_SIZE);
+		cout << chat.mess << endl;
+		CGameGUI::GetInst()->m_chat_data.emplace_back(chat);
 	}
+	break;
+	case SC_STAT_CHANGE:
+	{
+		SC_STAT_CHANGE_PACKET* my_packet = reinterpret_cast<SC_STAT_CHANGE_PACKET*>(packet);
+		int id = my_packet->id;
+		int exp = my_packet->exp;
+		int level = my_packet->level;
+		int hp = my_packet->hp;
+		int maxhp = my_packet->max_hp;
+		CObjectMgr::GetInst()->SetStat(id, exp, level, hp, maxhp);
+	}
+	break;
 	default:
 		printf("Unknown PACKET type [%d]\n", packet[1]);
 	}

@@ -1,5 +1,6 @@
 #include "Timer.h"
 #include "expover.h"
+#include "NPC.h"
 
 void do_timer()
 {
@@ -21,15 +22,28 @@ void do_timer()
 				PostQueuedCompletionStatus(SharedData::g_iocp, 1, ev.obj_id, &over->over);
 			}
 			break;
-			case EV_TICK:
+			case EV_PLAYER_HEAL:
 			{
 				EXP_OVER* over = new EXP_OVER;
-				over->op_type = OP_TICK;
+				over->op_type = OP_PLAYER_HEAL;
+				PostQueuedCompletionStatus(SharedData::g_iocp, 1, ev.obj_id, &over->over);
+			}
+			break;
+			case EV_RESPAWN:
+			{
+				EXP_OVER* over = new EXP_OVER;
+				over->op_type = OP_RESPAWN;
+				PostQueuedCompletionStatus(SharedData::g_iocp, 1, ev.obj_id, &over->over);
+			}
+			break;
+			case EV_NPC_AI:
+			{
+				EXP_OVER* over = new EXP_OVER;
+				over->op_type = OP_NPC_AI;
 				PostQueuedCompletionStatus(SharedData::g_iocp, 1, ev.obj_id, &over->over);
 			}
 			break;
 			}
-			continue;
 		}
 		else this_thread::sleep_for(1ms);
 	}

@@ -7,7 +7,7 @@ private:
 	sf::TcpSocket g_socket;
 
 	char m_hostName[NAME_SIZE];
-	short m_hostID;
+	int m_hostID;
 
 public:
 	CNetwork();

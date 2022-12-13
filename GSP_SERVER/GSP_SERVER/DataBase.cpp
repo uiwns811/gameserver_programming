@@ -33,6 +33,8 @@ void CDataBase::DB_Initialize()
 	}
 
 	retcode = SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt);
+
+	cout << "DB connect complete" << endl;
 }
 
 void CDataBase::DB_Thread()
@@ -145,9 +147,9 @@ void CDataBase::DB_InsertUserData(DB_EVENT event)
 	string name(event.name);
 	short x = SharedData::g_clients[event.obj_id]->m_x;
 	short y = SharedData::g_clients[event.obj_id]->m_y;
-	short exp = SharedData::g_clients[event.obj_id]->m_exp;
-	short level = SharedData::g_clients[event.obj_id]->m_level;
-	short hp = SharedData::g_clients[event.obj_id]->m_hp;
+	int exp = SharedData::g_clients[event.obj_id]->m_exp;
+	int level = SharedData::g_clients[event.obj_id]->m_level;
+	int hp = SharedData::g_clients[event.obj_id]->m_hp;
 
 	string query_s = "EXEC insert_data " + name + ", " + to_string(x) + ", " + to_string(y) + ", " + to_string(exp) + ", " + to_string(level) + ", " + to_string(hp);
 	wstring query(query_s.begin(), query_s.end());
@@ -197,9 +199,9 @@ void CDataBase::DB_UpdateUserData(DB_EVENT event)		// disconnectÇßÀ» ¶§ Æ¯Á¤ °´Ã
 	string name(event.name);
 	short x = SharedData::g_clients[event.obj_id]->m_x;
 	short y = SharedData::g_clients[event.obj_id]->m_y;
-	short exp = SharedData::g_clients[event.obj_id]->m_exp;
-	short level = SharedData::g_clients[event.obj_id]->m_level;
-	short hp = SharedData::g_clients[event.obj_id]->m_hp;
+	int exp = SharedData::g_clients[event.obj_id]->m_exp;
+	int level = SharedData::g_clients[event.obj_id]->m_level;
+	int hp = SharedData::g_clients[event.obj_id]->m_hp;
 
 	string query_s = "EXEC update_data " + name + ", " + to_string(x) + ", " + to_string(y) + ", " + to_string(exp) + ", " + to_string(level) + ", " + to_string(hp);
 	wstring query(query_s.begin(), query_s.end());

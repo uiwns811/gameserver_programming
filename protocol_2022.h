@@ -14,6 +14,8 @@ constexpr int SECTOR_CNT = 67;
 constexpr int SECTOR_SIZE = 30;
 constexpr int SECTOR_HALF = SECTOR_SIZE / 2;
 
+constexpr int SYSTEM_CHAT_ID = -10;
+
 // Packet ID
 constexpr char CS_LOGIN = 0;
 constexpr char CS_MOVE = 1;
@@ -31,6 +33,7 @@ constexpr char SC_LOGIN_OK = 7;
 constexpr char SC_LOGIN_FAIL = 8;
 constexpr char SC_STAT_CHANGE = 9;
 constexpr char SC_ATTACK_PLAYER = 10;
+constexpr char SC_PLAYER_DIE = 11;
 
 #pragma pack (push, 1)
 struct CS_LOGIN_PACKET {
@@ -118,9 +121,10 @@ struct SC_LOGIN_FAIL_PACKET {
 
 };
 
-struct SC_STAT_CHANGEL_PACKET {
+struct SC_STAT_CHANGE_PACKET {
 	unsigned char size;
 	char	type;
+	int		id;
 	int		hp;
 	int		max_hp;
 	int		exp;
@@ -129,6 +133,12 @@ struct SC_STAT_CHANGEL_PACKET {
 };
 
 struct SC_ATTACK_PLAYER_PACKET {
+	unsigned char size;
+	char type;
+	int id;
+};
+
+struct SC_PLAYER_DIE_PACKET {
 	unsigned char size;
 	char type;
 	int id;
