@@ -135,18 +135,11 @@
   <ItemGroup>
     <ClCompile Include="GameFramework.cpp" />
     <ClCompile Include="GameGUI.cpp" />
-    <ClCompile Include="include\imgui\imgui-SFML.cpp" />
-    <ClCompile Include="include\imgui\imgui.cpp" />
-    <ClCompile Include="include\imgui\imgui_demo.cpp" />
-    <ClCompile Include="include\imgui\imgui_draw.cpp" />
-    <ClCompile Include="include\imgui\imgui_tables.cpp" />
-    <ClCompile Include="include\imgui\imgui_widgets.cpp" />
     <ClCompile Include="IngameScene.cpp" />
     <ClCompile Include="LoginScene.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Map.cpp" />
     <ClCompile Include="Network.cpp" />
-    <ClCompile Include="NPC.cpp" />
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="ObjectMgr.cpp" />
     <ClCompile Include="Scene.cpp" />
@@ -160,7 +153,6 @@
     <ClInclude Include="LoginScene.h" />
     <ClInclude Include="Map.h" />
     <ClInclude Include="Network.h" />
-    <ClInclude Include="NPC.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="ObjectMgr.h" />
     <ClInclude Include="Scene.h" />

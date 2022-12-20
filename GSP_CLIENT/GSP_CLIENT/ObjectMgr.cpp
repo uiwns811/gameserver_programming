@@ -44,10 +44,14 @@ void CObjectMgr::CleanUp()
 
 void CObjectMgr::Move(int id, short x, short y)
 {
-	if (id < MAX_USER)
-		players[id]->Move(x, y);
-	else
-		npc[id]->Move(x, y);
+	if (id < MAX_USER) {
+		if (players.count(id) != 0)
+			players[id]->Move(x, y);
+	}
+	else {
+		if (npc.count(id) != 0)
+			npc[id]->Move(x, y);
+	}
 
 	if (id == m_avatarID)
 	{
@@ -87,29 +91,38 @@ void CObjectMgr::AddObject(char* name, int id, short x, short y)
 		if (m_top > W_HEIGHT - SCREEN_HEIGHT) m_top = W_HEIGHT - SCREEN_HEIGHT;
 	}
 	else if (id < MAX_USER) {
-		players[id] = new CObject(*playerTex, 0, 0);
-		players[id]->SetName(name);
+		players[id] = new CObject(name, id, *playerTex, 0, 0);
+		//players[id]->SetName(name);
 		players[id]->Move(x, y);
 	}
 	else {
-		char* type = strtok(name, "_");
+		char type = name[0];
+		char new_name[NAME_SIZE];
 
-		if (strcmp(type, "00") == 0) {
-			npc[id] = new CObject(*npcTex1, 0, 0);
+		if (type == '0') {
+			sprintf_s(new_name, "PF%s", name);
+			npc[id] = new CObject(new_name, id, *npcTex1, 0, 0);
 		}
-		else if (strcmp(type, "01") == 0) {
-			npc[id] = new CObject(*npcTex2, 0, 0);
+		else if (type == '1') {
+			sprintf_s(new_name, "PL%s", name);
+			npc[id] = new CObject(new_name, id, *npcTex2, 0, 0);
 		}
-		else if (strcmp(type, "10") == 0) {
-			npc[id] = new CObject(*npcTex3, 0, 0);
+		else if (type == '2') {
+			sprintf_s(new_name, "AF%s", name);
+			npc[id] = new CObject(new_name, id, *npcTex3, 0, 0);
 		}
-		else if (strcmp(type, "11") == 0) {
-			npc[id] = new CObject(*npcTex4, 0, 0);
+		else if (type == '3') {
+			sprintf_s(new_name, "AL%s", name);
+			npc[id] = new CObject(new_name, id, *npcTex4, 0, 0);
 		}
-		npc[id]->SetName(name);
+		else {
+			cout << type << endl;
+			sprintf_s(new_name, "AL%s", name);
+			npc[id] = new CObject(new_name, id, *npcTex4, 0, 0);
+		}
+		//npc[id]->SetName(new_name);
 		npc[id]->Move(x, y);
 	}
-	
 }
 
 void CObjectMgr::RemoveObject(int id)
@@ -124,15 +137,23 @@ void CObjectMgr::RemoveObject(int id)
 
 void CObjectMgr::Attack(int id)
 {
-	if (id > MAX_USER) return;
-	players[id]->SetAttack(true);
-	players[id]->SetAttackTime(chrono::system_clock::now());
+	if (id < MAX_USER) {
+		if (players.count(id) == 0) return;
+		players[id]->SetAttack(true);
+		players[id]->SetAttackTime(chrono::system_clock::now());
+	}
+	else {
+		if (npc.count(id) == 0) return;
+		npc[id]->SetAttack(true);
+		npc[id]->SetAttackTime(chrono::system_clock::now());
+	}
 }
 
 void CObjectMgr::SetAvatar(int id)
 {
 	m_avatarID = id; 
-	players[m_avatarID] = new CObject(*playerTexAvatar, 0, 0);
+	char temp[NAME_SIZE] = "avatar";
+	players[m_avatarID] = new CObject(temp, id, *playerTexAvatar, 0, 0);
 }
 
 void CObjectMgr::GetAvatarInfo(char* name, short& x, short& y, int& exp, int& level, int& hp, int& maxhp)
@@ -144,4 +165,36 @@ void CObjectMgr::GetAvatarInfo(char* name, short& x, short& y, int& exp, int& le
 	level = players[m_avatarID]->GetLevel();
 	hp = players[m_avatarID]->GetHp();
 	maxhp = players[m_avatarID]->GetMaxHp();
+}
+
+void CObjectMgr::GetPlayerInfo(int id, char* name, short& x, short& y, int& exp, int& level, int& hp, int& maxhp)
+{
+	strncpy_s(name, NAME_SIZE, players[id]->GetName(), NAME_SIZE);
+	x = players[id]->GetX();
+	y = players[id]->GetY();
+	exp = players[id]->GetExp();
+	level = players[id]->GetLevel();
+	hp = players[id]->GetHp();
+	maxhp = players[id]->GetMaxHp();
+}
+
+void CObjectMgr::GetPlayerStat(int id, short& x, short& y, int& hp, int& maxhp)
+{
+	x = players[id]->GetX();
+	y = players[id]->GetY();
+	hp = players[id]->GetHp();
+	maxhp = players[id]->GetMaxHp();
+
+}
+
+void CObjectMgr::SetStat(int id, int exp, int level, int hp, int maxhp)
+{
+	if (id < MAX_USER) {
+		if (players.count(id) != 0) 
+			players[id]->SetStat(exp, level, hp, maxhp);
+	}
+	else {
+		if (npc.count(id) != 0)
+			npc[id]->SetStat(exp, level, hp, maxhp);
+	}
 }

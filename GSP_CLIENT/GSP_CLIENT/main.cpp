@@ -13,18 +13,19 @@ int main()
 	CGameFramework::GetInst()->SetWindow(window);
 
 	CGameGUI::GetInst()->Init(window);
-
+	
 	while (window.isOpen())
 	{
 		sf::Event event;
 		while (window.pollEvent(event))
 		{
-			ImGui::SFML::ProcessEvent(window, event);
 			switch (event.type) {
 			case sf::Event::Closed:
+			{
 				CNetwork::GetInst()->SendLogoutPacket();
 				window.close();
-				break;
+			}
+			break;
 			case sf::Event::KeyPressed: 
 			{
 				int direction = -1;
@@ -44,6 +45,22 @@ int main()
 				case sf::Keyboard::A:
 					CNetwork::GetInst()->SendAttackPacket();
 					break;
+				case sf::Keyboard::P:
+					CNetwork::GetInst()->SendInvitePartyPacket();
+					break;
+				case sf::Keyboard::Y:
+					CNetwork::GetInst()->SendJoinPartyPacket();
+					CGameGUI::GetInst()->SetShowPartyRequested(false);
+					break;
+				case sf::Keyboard::N:
+					CGameGUI::GetInst()->SetShowPartyRequested(false);
+					break;
+				case sf::Keyboard::Enter:
+					cout << "Chatting : ";
+					char chat[CHAT_SIZE];
+					cin >> chat;
+					CNetwork::GetInst()->SendChatPacket(chat);
+					break;
 				case sf::Keyboard::Escape:
 					CNetwork::GetInst()->SendLogoutPacket();
 					window.close();
@@ -57,7 +74,6 @@ int main()
 			}
 		}
 
-		CGameGUI::GetInst()->Update();
 		window.clear();
 		CGameFramework::GetInst()->Update();
 		window.display();

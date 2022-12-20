@@ -8,33 +8,36 @@ end
 
 function CreatePF()
 	level = 1;
-	hp = 50;
+	hp = 10;
 end
 
 function CreatePL()
-	level = 2;
-	hp = 100;
+	level = 3;
+	hp = 50;
 end
 
 function CreateAF()
 	level = 2;
-	hp = 200;
+	hp = 100;
 end
 
 function CreateAL()
-	level = 3;
-	hp = 300;
+	level = 2;
+	hp = 150;
 end
 
-function Initialize(attacktype, movetype)
-	if (attacktype == 0 and movetype == 0) then
+function Init()
+	math.randomseed(os.time());
+	type = math.random(0, 3);
+	x, y = API_InitializePos();
+	if (type == 0) then
 		CreatePF();
-	elseif (attacktype == 0 and movetype == 1) then
+	elseif (type == 1) then
 		CreatePL();
-	elseif (attacktype == 1 and movetype == 0) then
+	elseif (type == 2) then
 		CreateAF();
-	elseif (attacktype == 1 and movetype == 1) then
+	elseif (type == 3) then
 		CreateAL();
 	end
-	return level, hp;
+	return type, x, y, level, hp;
 end

@@ -17,9 +17,13 @@ public:
 
 	void ChangeScene(SCENE_TYPE scene_type);
 
+	void SetRender(bool _bTrue) { m_bRender = _bTrue; }
+
 private:
 	CScene* m_pCurScene;
 	SCENE_TYPE m_pType;
 	CScene* m_scenes[(UINT)SCENE_TYPE::END];
+
+	bool m_bRender = false;
 };
 

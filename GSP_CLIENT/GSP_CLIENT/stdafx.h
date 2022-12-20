@@ -25,11 +25,6 @@ using namespace std;
 #pragma comment (lib, "winmm.lib")
 #pragma comment (lib, "ws2_32.lib")
 
-#include <imgui/imgui.h>
-#include <imgui/imconfig.h>
-#include <imgui/imgui-SFML.h>
-#include <imgui/imconfig-SFML.h>
-
 #include <WS2tcpip.h>
 #include <vector>
 #include <unordered_map>
@@ -39,6 +34,7 @@ using namespace std;
 #include <queue>
 #include <string>
 #include <string.h>
+#include <unordered_set>
 
 #include "..\..\protocol_2022.h"
 
@@ -60,6 +56,7 @@ enum class SCENE_TYPE {
 struct CHAT {
 	char name[NAME_SIZE];
 	char mess[CHAT_SIZE];
+	chrono::system_clock::time_point chat_time;
 };
 
 template<typename T>

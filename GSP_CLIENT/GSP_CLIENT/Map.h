@@ -30,7 +30,6 @@ class CMap : public TSingleton<CMap>
 {
 private:
 	sf::Texture* tileTex;
-	bool m_bRender = false;
 
 public:
 	void Init();
@@ -38,7 +37,6 @@ public:
 	void Render();
 	void CleanUp();
 
-	void SetRender(bool _bTrue) { m_bRender = _bTrue; }
 	bool CanMove(short x, short y) { return m_tilemap[x][y]->GetFlag(); }
 
 	//std::vector<std::vector<CTile*>> m_tilemap;

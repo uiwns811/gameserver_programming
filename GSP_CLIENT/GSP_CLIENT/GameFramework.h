@@ -13,7 +13,8 @@ public:
 	void CleanUp();
 
 	void SetWindow(sf::RenderWindow& window) { m_window = &window; }
-	void Render(sf::Drawable& t) { m_window->draw(t); }
+	template<typename T> 
+	void Render(T& t) { m_window->draw(t); }
 	void CloseWindow() { m_window->close(); }
 
 	//sf::Clock GetDT() { return m_deltaClock; }

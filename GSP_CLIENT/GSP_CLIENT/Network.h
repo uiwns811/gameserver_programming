@@ -40,8 +40,10 @@ public:
 	void SendLogoutPacket();
 	void SendMovePacket(int direction);
 	void SendAttackPacket();
-	void SendChatPacket(char* mess);
+	void SendChatPacket(const char* mess);
 	void SendTeleportPacket();
+	void SendInvitePartyPacket();
+	void SendJoinPartyPacket();
 
 	void SetHostID(short id) { m_hostID = id; }
 };

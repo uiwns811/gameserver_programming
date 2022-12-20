@@ -3,6 +3,7 @@
 #include "DataBase.h"
 #include "function.h"
 #include "NPC.h"
+#include "Party.h"
 
 void CPlayer::Initialize()
 {
@@ -13,8 +14,8 @@ void CPlayer::Initialize()
 	m_name[0] = 0;
 	m_prev_remain = 0;
 
-	m_x = 2;
-	m_y = 2;
+	m_x = START_X;
+	m_y = START_Y;
 	m_exp = START_EXP;
 	m_level = 1;
 	m_hp = MAX_HP;
@@ -36,8 +37,20 @@ void CPlayer::Disconnect()
 		CPlayer* cl = reinterpret_cast<CPlayer*>(SharedData::g_clients[id]);
 		if (cl->m_id == m_id) continue;
 		if (ST_INGAME != cl->m_state) continue;
+		if (isParty(id)) continue;			// 뒤에 파티원 따로 처리해줄거임
 		cl->SendRemoveObjectPacket(m_id);
 	}
+
+
+	if (m_party != nullptr) {
+		for (auto& pm : m_party->GetPartyMemeber()) {
+			CPlayer* pl = reinterpret_cast<CPlayer*>(SharedData::g_clients[pm]);
+			pl->SendExitPartyPacket(m_id);
+			pl->SendRemoveObjectPacket(m_id);
+		}
+	}
+
+	SharedData::g_sector.RemoveSector(m_id, m_x, m_y);
 
 	m_s_lock.lock();
 	m_state = ST_FREE;
@@ -52,25 +65,20 @@ void CPlayer::Move(int direction, unsigned char move_time)
 {
 	short x = m_x;
 	short y = m_y;
-	short oldX = x;
-	short oldY = y;
 	switch (direction) {
-	case 0: if (y > 0) y--; break;
-	case 1: if (y < W_HEIGHT - 1) y++; break;
-	case 2: if (x > 0) x--; break;
-	case 3: if (x < W_WIDTH - 1) x++; break;
+	case 0: if (y > 0 && (SharedData::g_map[x][y-1] == true)) y--; break;
+	case 1: if (y < W_HEIGHT - 1 && (SharedData::g_map[x][y + 1] == true)) y++; break;
+	case 2: if (x > 0 && (SharedData::g_map[x-1][y] == true)) x--; break;
+	case 3: if (x < W_WIDTH - 1 && (SharedData::g_map[x+1][y] == true)) x++; break;
 	}
 
-	m_move_time = move_time;
+	//m_move_time = 0;
 	
-	// 서버에서 한 번 더 체크 -> 갈 수 없는 곳에 갔으면 원위치로 이동
-	if (SharedData::g_map[x][y]) {
-		m_x = x;
-		m_y = y;
+	SharedData::g_sector.UpdateSector(m_id, x, y, m_x, m_y);
+	m_x = x;
+	m_y = y;
 
-		SharedData::g_sector.UpdateSector(m_id, x, y, oldX, oldY);
-		CheckViewList();
-	}
+	CheckViewList();
 }
 
 void CPlayer::CheckExpAndLevel()
@@ -80,17 +88,68 @@ void CPlayer::CheckExpAndLevel()
 		m_level += 1;
 		m_requiredExp *= 2;
 	}
+
+	if (m_exp <= 0) m_exp = 0;
 }
 
 void CPlayer::Respawn()
 {
+	m_vl_lock.lock();
+	unordered_set<int> vlist = m_viewlist;
+	m_vl_lock.unlock();
+
+	// 날 보고 있던 애들한테서 나 remove
+	for (auto& cl : vlist) {
+		SendRemoveObjectPacket(cl);
+		if (is_pc(cl)) {
+			CPlayer* p = reinterpret_cast<CPlayer*>(SharedData::g_clients[cl]);
+			p->m_vl_lock.lock();
+			if (p->m_viewlist.count(m_id)) {
+				p->m_vl_lock.unlock();
+				p->SendRemoveObjectPacket(m_id);
+			}
+			else {
+				p->m_vl_lock.unlock();
+			}
+		}
+		else {
+			//SleepNPC(cl, m_id);
+		}
+	}
+
+	SharedData::g_sector.UpdateSector(m_id, START_X, START_Y, m_x, m_y);
+	m_x = START_X;
+	m_y = START_Y;
+	SendMoveObjectPacket(m_id, 0);
+
 	m_exp -= m_exp / 2;
 	m_hp = MAX_HP;
 	
-	m_x = 2;
-	m_y = 2;
-
 	SendStatChangePacket(m_id, m_exp, m_level, m_hp, m_maxhp);
+
+	// 위치 이동 후 주위 플레이어 싹 다 추가
+
+	unordered_set<int> nearlist;
+	SharedData::g_sector.CreateNearList(nearlist, m_id, m_x, m_y);
+
+	for (auto& nc : nearlist) {
+		if (is_pc(nc)) {
+			CPlayer* p = reinterpret_cast<CPlayer*>(SharedData::g_clients[nc]);
+			p->SendAddObjectPacket(m_id);
+			p->SendStatChangePacket(m_id, m_exp, m_level, m_hp, m_maxhp);
+			SendAddObjectPacket(nc);
+			SendStatChangePacket(nc, p->m_exp, p->m_level, p->m_hp, p->m_maxhp);
+
+		}
+		else {
+			CNPC* npc = reinterpret_cast<CNPC*>(SharedData::g_clients[nc]);
+			if (npc->m_is_active) {
+				SendAddObjectPacket(nc);
+				SendStatChangePacket(nc, npc->m_exp, npc->m_level, npc->m_hp, npc->m_maxhp);
+			}
+			WakeUpNPC(nc, m_id);		
+		}
+	}
 }
 
 void CPlayer::RecoverHp()
@@ -109,40 +168,53 @@ void CPlayer::Attack()
 	m_vl_lock.unlock();
 
 	for (auto& cl : vlist) {
-		if (true == CanAttack(m_id, cl)) {
-			if (cl >= MAX_USER) {
+		if (CanAttack(m_id, cl)) {
+			if (is_npc(cl)) {
 				CNPC* npc = reinterpret_cast<CNPC*>(SharedData::g_clients[cl]);
+				if (npc->m_is_active == false) continue;
 				if (npc->m_attack_type == NPC_PEACE) {
 					npc->SetTarget(m_id);
+					if (CanAttack(npc->m_id, m_id)) npc->m_npc_state = NPC_ATTACK;
+					else npc->m_npc_state = NPC_MOVE;
 				}
 
+				int exp = m_level * m_level * 2;
+				
+				npc->SetDamage(exp);
+				
 				// 플레이어 경험치 처리
-				int exp = npc->m_level * npc->m_level * 2;
 				if (npc->m_move_type == NPC_LOAMING) exp *= 2;
 				if (npc->m_attack_type == NPC_AGRO) exp *= 2;
 				m_exp += exp;
 				CheckExpAndLevel();
 				SendStatChangePacket(m_id, m_exp, m_level, m_hp, m_maxhp);
 
-				// 몬스터 hp 처리
-				int damage = m_level * m_level * 2;
-				if (npc->m_move_type == NPC_LOAMING) damage *= 2;
-				if (npc->m_attack_type == NPC_AGRO) damage *= 2;
-				npc->SetDamage(damage);
-
 				char mess[CHAT_SIZE];
-				sprintf_s(mess, "%s가 %s를 공격하여 %d의 경험치 획득!", m_name, npc->m_name, exp);
+				sprintf_s(mess, "Get EXP %d - attack %s!", exp, npc->m_name);
 				SendChatPacket(SYSTEM_CHAT_ID, mess);
+
+				// 파티원 경험치 공유
+				if (m_party != nullptr) {
+					unordered_set<int> party = m_party->GetPartyMemeber();
+					for (auto& p : party) {
+						if (p == m_id) continue;
+						CPlayer* pp = reinterpret_cast<CPlayer*>(SharedData::g_clients[p]);
+						pp->m_exp += exp;
+						pp->CheckExpAndLevel();
+						pp->SendStatChangePacket(pp->m_id, pp->m_exp, pp->m_level, pp->m_hp, pp->m_maxhp);
+						pp->SendChatPacket(SYSTEM_CHAT_ID, mess);
+					}
+				}
+
+
 			}
 		}
 	}
 
-
-
-	SendAttackPlayerPacket(m_id);
+	SendAttackPacket(m_id);
 	for (auto& pl : vlist) {
 		if (is_pc(pl)) {
-			reinterpret_cast<CPlayer*>(SharedData::g_clients[pl])->SendAttackPlayerPacket(m_id);
+			reinterpret_cast<CPlayer*>(SharedData::g_clients[pl])->SendAttackPacket(m_id);
 		}
 	}
 }
@@ -153,14 +225,42 @@ void CPlayer::SetDamage(int damage)
 	if (m_hp <= 0) {
 		// 플레이어 다이
 		char mess[CHAT_SIZE];
-		sprintf_s(mess, "die..");
+		sprintf_s(mess, "%s DIE !!", m_name);
 		SendChatPacket(SYSTEM_CHAT_ID, mess);
+
+		SendPlayerDiePacket();
+
+		if (m_party != nullptr) {
+			unordered_set<int> party = m_party->GetPartyMemeber();
+			for (auto& p : party) {
+				CPlayer* pp = reinterpret_cast<CPlayer*>(SharedData::g_clients[p]);
+				pp->SendChatPacket(SYSTEM_CHAT_ID, mess);
+			}
+		}
 		
 		Respawn();
 	}
 	else {
 		SendStatChangePacket(m_id, m_exp, m_level, m_hp, m_maxhp);
+
+		if (m_party != nullptr) {
+			unordered_set<int> party = m_party->GetPartyMemeber();
+			for (auto& p : party) {
+				CPlayer* pp = reinterpret_cast<CPlayer*>(SharedData::g_clients[p]);
+				pp->SendStatChangePacket(m_id, m_exp, m_level, m_hp, m_maxhp);
+			}
+		}
 	}
+}
+
+bool CPlayer::isParty(int id)
+{
+	if (m_party == nullptr) return false;
+
+	if (m_party->GetPartyMemeber().count(id) != 0)
+		return true; 
+	else 
+		return false; 
 }
 
 void CPlayer::SendPacket(void* packet)
@@ -188,33 +288,58 @@ void CPlayer::CheckViewList()
 
 	SharedData::g_sector.CreateNearList(near_list, m_id, m_x, m_y);
 	
-	SendMoveObjectPacket(m_id);
+	SendMoveObjectPacket(m_id, m_move_time);
+
+	if (m_party != nullptr) {
+		for (auto& p : m_party->GetPartyMemeber()) {
+			CPlayer* pl = reinterpret_cast<CPlayer*>(SharedData::g_clients[p]);
+			pl->SendMoveObjectPacket(m_id, 0);
+		}
+	}
 
 	for (auto& pl : near_list) {
 		if (is_pc(pl)) {
+			if (isParty(pl)) continue;
 			CPlayer* cpl = reinterpret_cast<CPlayer*>(SharedData::g_clients[pl]);
 			cpl->m_vl_lock.lock();
 			if (cpl->m_viewlist.count(m_id)) {
 				cpl->m_vl_lock.unlock();
-				cpl->SendMoveObjectPacket(m_id);
+				cpl->SendMoveObjectPacket(m_id, 0);
 			}
 			else {
 				cpl->m_vl_lock.unlock();
 				cpl->SendAddObjectPacket(m_id);
+				cpl->SendStatChangePacket(m_id, m_exp, m_level, m_hp, m_maxhp);
 			}
 		}
 		else WakeUpNPC(pl, m_id);
 
 		if (old_vlist.count(pl) == 0) {
-			SendAddObjectPacket(pl);
+			if (is_pc(pl)) {
+				CObject* p = SharedData::g_clients[pl];
+				SendAddObjectPacket(pl);
+				SendStatChangePacket(pl, p->m_exp, p->m_level, p->m_hp, p->m_maxhp);
+			}
+			else {
+				CNPC* npc = reinterpret_cast<CNPC*>(SharedData::g_clients[pl]);
+				if (npc->m_is_active) {
+					SendAddObjectPacket(pl);
+					SendStatChangePacket(pl, npc->m_exp, npc->m_level, npc->m_hp, npc->m_maxhp);
+				}
+			}
 		}
 	}
 
 	for (auto& pl : old_vlist) {
 		if (near_list.count(pl) == 0) {
+			if (isParty(pl)) continue;
+
 			SendRemoveObjectPacket(pl);
 			if (is_pc(pl)) {
 				reinterpret_cast<CPlayer*>(SharedData::g_clients[pl])->SendRemoveObjectPacket(m_id);
+			}
+			else {
+				//SleepNPC(pl, m_id);
 			}
 		}
 	}
@@ -231,6 +356,7 @@ void CPlayer::Chatting(char* mess)
 			reinterpret_cast<CPlayer*>(SharedData::g_clients[pl])->SendChatPacket(m_id, mess);
 		}
 	}
+	SendChatPacket(m_id, mess);
 }
 
 void CPlayer::SendLoginOkPacket()
@@ -279,7 +405,7 @@ void CPlayer::SendAddObjectPacket(int c_id)
 	SendPacket(&p);
 }
 
-void CPlayer::SendMoveObjectPacket(int c_id)
+void CPlayer::SendMoveObjectPacket(int c_id, int move_time)
 {
 	SC_MOVE_OBJECT_PACKET p;
 	p.id = c_id;
@@ -287,7 +413,7 @@ void CPlayer::SendMoveObjectPacket(int c_id)
 	p.type = SC_MOVE_OBJECT;
 	p.x = SharedData::g_clients[c_id]->m_x;
 	p.y = SharedData::g_clients[c_id]->m_y;
-	p.move_time = SharedData::g_clients[c_id]->m_move_time;
+	p.move_time = move_time;
 	SendPacket(&p);
 }
 
@@ -303,7 +429,7 @@ void CPlayer::SendRemoveObjectPacket(int c_id)
 	}
 	m_vl_lock.unlock();	
 
-	SharedData::g_sector.RemoveSector(c_id, SharedData::g_clients[c_id]->m_x, SharedData::g_clients[c_id]->m_y);
+	//SharedData::g_sector.RemoveSector(c_id, SharedData::g_clients[c_id]->m_x, SharedData::g_clients[c_id]->m_y);
 
 	SC_REMOVE_OBJECT_PACKET p;
 	p.id = c_id;
@@ -312,12 +438,12 @@ void CPlayer::SendRemoveObjectPacket(int c_id)
 	SendPacket(&p);
 }
 
-void CPlayer::SendAttackPlayerPacket(int c_id)
+void CPlayer::SendAttackPacket(int c_id)
 {
-	SC_ATTACK_PLAYER_PACKET p;
+	SC_ATTACK_PACKET p;
 	p.id = c_id;
-	p.size = sizeof(SC_ATTACK_PLAYER_PACKET);
-	p.type = SC_ATTACK_PLAYER;
+	p.size = sizeof(SC_ATTACK_PACKET);
+	p.type = SC_ATTACK;
 	SendPacket(&p);
 }
 
@@ -344,13 +470,57 @@ void CPlayer::SendStatChangePacket(int c_id, int exp, int level, int hp, int max
 	SendPacket(&p);
 }
 
+void CPlayer::SendInvitePartyPacket(int c_id)
+{
+	SC_INVITE_PARTY_PACKET p;
+	p.size = sizeof(SC_INVITE_PARTY_PACKET);
+	p.type = SC_INVITE_PARTY;
+	p.id = c_id;
+	SendPacket(&p);
+}
+
+void CPlayer::SendJoinPartyPacket(int c_id)
+{
+	SC_JOIN_PARTY_PACKET p;
+	p.size = sizeof(SC_JOIN_PARTY_PACKET);
+	p.type = SC_JOIN_PARTY;
+	p.id = c_id;
+	SendPacket(&p);
+}
+
+void CPlayer::SendExitPartyPacket(int c_id)
+{
+	SC_EXIT_PARTY_PACKET p;
+	p.size = sizeof(SC_EXIT_PARTY_PACKET);
+	p.type = SC_EXIT_PARTY;
+	p.id = c_id;
+	SendPacket(&p);
+}
+
+void CPlayer::SendPlayerDiePacket()
+{
+	SC_PLAYER_DIE_PACKET p;
+	p.size = sizeof(SC_PLAYER_DIE_PACKET);
+	p.type = SC_PLAYER_DIE;
+	p.id = m_id;
+	SendPacket(&p);
+
+}
+
 void CPlayer::Teleport()
 {
 	short x = m_x;
 	short y = m_y;
-	m_x = rand() % W_WIDTH;
-	m_y = rand() % W_HEIGHT;
 
-	SharedData::g_sector.UpdateSector(m_id, m_x, m_y, x, y);
+	while (true) {
+		x = rand() % W_WIDTH;
+		y = rand() % W_HEIGHT;
+		if (SharedData::g_map[x][y]) break;
+	}
+	
+	SharedData::g_sector.UpdateSector(m_id, x, y, m_x, m_y);
+	m_x = x;
+	m_y = y;
+
 	CheckViewList();
 }

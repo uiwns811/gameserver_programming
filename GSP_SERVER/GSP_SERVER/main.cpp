@@ -5,13 +5,14 @@
 #include "Timer.h"
 #include "NPC.h"
 #include "function.h"
+#include "Party.h"
 
 namespace SharedData {
 	array<CObject*, MAX_USER + MAX_NPC> g_clients;
 	SOCKET g_listen_socket;
 	SOCKET g_c_socket;
 	EXP_OVER g_over;
-	bool g_map[W_WIDTH][W_HEIGHT];		// 나중에 sector로 바꾸자!
+	bool g_map[W_WIDTH][W_HEIGHT];
 	HANDLE g_iocp;
 	CSector g_sector;
 	CDataBase g_db;
@@ -39,11 +40,14 @@ void ProcessPacket(int c_id, char* packet)
 	switch (packet[1]) {
 	case CS_LOGIN:
 	{
+		char dummy_client[NAME_SIZE];
+		sprintf_s(dummy_client, "dummy");
 		CS_LOGIN_PACKET* p = reinterpret_cast<CS_LOGIN_PACKET*>(packet);
 		for (auto& cl : SharedData::g_clients) {
-			if (cl->m_id > MAX_USER) continue;
+			if (is_npc(cl->m_id)) continue;
 			if (cl->m_id == c_id) continue;
 			if (cl->m_state != ST_INGAME) continue;
+			if (strcmp(cl->m_name, dummy_client) == 0) continue;
 			if (strcmp(cl->m_name, p->name) == 0) {
 				reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id])->SendLoginFailPacket();
 				cout << c_id << " : Login Fail!!" << endl;
@@ -68,7 +72,8 @@ void ProcessPacket(int c_id, char* packet)
 		int direction = p->direction;
 		unsigned char move_time = p->move_time;
 		CPlayer* player = reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id]);
-		if (player->m_move_cooltime + 0s < chrono::system_clock::now()) {
+		player->m_move_time = p->move_time;
+		if (player->m_move_cooltime + 1s < chrono::system_clock::now()) {
 			player->Move(direction, move_time);
 			player->m_move_cooltime = chrono::system_clock::now();
 		}
@@ -98,6 +103,30 @@ void ProcessPacket(int c_id, char* packet)
 		cout << mess << endl;
 		CPlayer* player = reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id]);
 		player->Chatting(mess);
+	}
+	break;
+	case CS_INVITE_PARTY:
+	{
+		CS_INVITE_PARTY_PACKET* p = reinterpret_cast<CS_INVITE_PARTY_PACKET*>(packet);
+		CPlayer* player = reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id]);
+		CParty* party = player->GetParty();
+		if (party == nullptr)
+			party = new CParty();
+		party->InviteParty(c_id);
+		player->SetParty(party);
+	}
+	break;
+	case CS_JOIN_PARTY:
+	{
+		CS_JOIN_PARTY_PACKET* p = reinterpret_cast<CS_JOIN_PARTY_PACKET*>(packet);
+		cout << c_id << " : join party" << endl;
+		int inviterid = p->id;
+		CPlayer* player = reinterpret_cast<CPlayer*>(SharedData::g_clients[c_id]);
+		CPlayer* inviter = reinterpret_cast<CPlayer*>(SharedData::g_clients[inviterid]);
+		CParty* party = inviter->GetParty();
+		if (party == nullptr) cout << "party is null" << endl;
+		party->JoinParty(c_id);
+		player->SetParty(party);
 	}
 	break;
 	case CS_TELEPORT:
@@ -187,12 +216,14 @@ void WorkerThread()
 			player->m_hp = user_info->m_hp;
 			player->m_s_lock.lock();
 			player->m_state = ST_INGAME;
-			player->m_is_active = true;
+			//player->m_is_active = true;
 			player->m_s_lock.unlock();
+			
 			SharedData::g_sector.InsertSector(client_id, player->m_x, player->m_y);
 			player->SendLoginOkPacket();
 			player->SendLoginInfoPacket();
-			for (auto& pl : SharedData::g_clients) {
+
+			/*for (auto& pl : SharedData::g_clients) {
 				{
 					lock_guard<mutex> ll(pl->m_s_lock);
 					if (ST_INGAME != pl->m_state) continue;
@@ -202,7 +233,30 @@ void WorkerThread()
 				if (is_pc(pl->m_id)) reinterpret_cast<CPlayer*>(pl)->SendAddObjectPacket(client_id);
 				else WakeUpNPC(pl->m_id, client_id);
 				player->SendAddObjectPacket(pl->m_id);
+			}*/
+
+			unordered_set<int> nearlist;
+			SharedData::g_sector.CreateNearList(nearlist, client_id, player->m_x, player->m_y);
+			for (auto& nc : nearlist) {
+				if (is_pc(nc)) {
+					CPlayer* np = reinterpret_cast<CPlayer*>(SharedData::g_clients[nc]);
+					np->SendAddObjectPacket(client_id);
+					np->SendStatChangePacket(client_id, player->m_exp, player->m_level, player->m_hp, player->m_maxhp);
+
+					player->SendAddObjectPacket(nc);
+					player->SendStatChangePacket(nc, np->m_exp, np->m_level, np->m_hp, np->m_maxhp);
+				}
+				else {
+					WakeUpNPC(nc, client_id);
+					CNPC* npc = reinterpret_cast<CNPC*>(SharedData::g_clients[nc]);
+					if (npc->m_is_active) {
+						player->SendAddObjectPacket(nc);
+						player->SendStatChangePacket(nc, npc->m_exp, npc->m_level, npc->m_hp, npc->m_maxhp);
+					}
+				}
+				
 			}
+
 			// 플레이어 힐 이벤트 추가
 			TIMER_EVENT ev{ key, chrono::system_clock::now() + 5s, EV_PLAYER_HEAL, 0 };
 			SharedData::timer_queue.push(ev);
@@ -213,20 +267,42 @@ void WorkerThread()
 		case OP_DB_LOGIN_NO_INFO:
 		{
 			CPlayer* player = reinterpret_cast<CPlayer*>(SharedData::g_clients[client_id]);	
+
+			player->m_s_lock.lock();
+			player->m_state = ST_INGAME;
+			//player->m_is_active = true;
+			player->m_s_lock.unlock();
+
 			SharedData::g_sector.InsertSector(client_id, player->m_x, player->m_y);
 			player->SendLoginOkPacket();
 			player->SendLoginInfoPacket();
-			for (auto& pl : SharedData::g_clients) {
-				{
-					lock_guard<mutex> ll(pl->m_s_lock);
-					if (ST_INGAME != pl->m_state) continue;
+
+			unordered_set<int> nearlist;
+			SharedData::g_sector.CreateNearList(nearlist, client_id, player->m_x, player->m_y);
+			for (auto& nc : nearlist) {
+				if (is_pc(nc)) {
+					CPlayer* np = reinterpret_cast<CPlayer*>(SharedData::g_clients[nc]);
+					np->SendAddObjectPacket(client_id);
+					np->SendStatChangePacket(client_id, player->m_exp, player->m_level, player->m_hp, player->m_maxhp);
+
+					player->SendAddObjectPacket(nc);
+					player->SendStatChangePacket(nc, np->m_exp, np->m_level, np->m_hp, np->m_maxhp);
 				}
-				if (pl->m_id == client_id) continue;
-				if (false == can_see(client_id, pl->m_id)) continue;
-				if (is_pc(pl->m_id)) reinterpret_cast<CPlayer*>(pl)->SendAddObjectPacket(client_id);
-				else WakeUpNPC(pl->m_id, client_id);
-				player->SendAddObjectPacket(pl->m_id);
+				else {
+					WakeUpNPC(nc, client_id);
+					CNPC* npc = reinterpret_cast<CNPC*>(SharedData::g_clients[nc]);
+					if (npc->m_is_active) {
+						player->SendAddObjectPacket(nc);
+						player->SendStatChangePacket(nc, npc->m_exp, npc->m_level, npc->m_hp, npc->m_maxhp);
+					}
+				}
+
 			}
+
+			TIMER_EVENT ev{ key, chrono::system_clock::now() + 5s, EV_PLAYER_HEAL, 0 };
+			SharedData::timer_queue.push(ev);
+			
+			delete exp_over;
 		}
 		break;
 		case OP_DB_UPDATE:
@@ -235,42 +311,44 @@ void WorkerThread()
 
 			TIMER_EVENT ev{ key, chrono::system_clock::now() + 10s, EV_DB_UPDATE, 0 };			// 10초마다 저장
 			SharedData::timer_queue.push(ev);
+			delete exp_over;
 		}
 		break;
 		case OP_PLAYER_HEAL:
 		{
-			reinterpret_cast<CPlayer*>(SharedData::g_clients[key])->RecoverHp();
+			reinterpret_cast<CPlayer*>(SharedData::g_clients[client_id])->RecoverHp();
 			TIMER_EVENT ev{ key, chrono::system_clock::now() + 5s, EV_PLAYER_HEAL, 0 };
 			SharedData::timer_queue.push(ev);
+			delete exp_over;
 		}
 		break;
-		case OP_RESPAWN:
+		case OP_RESPAWN_NPC:
 		{
-			SharedData::g_sector.InsertSector(client_id, SharedData::g_clients[key]->m_x, SharedData::g_clients[key]->m_y);
+			CNPC* npc = reinterpret_cast<CNPC*>(SharedData::g_clients[client_id]);
+			SharedData::g_sector.InsertSector(client_id, npc->m_x, npc->m_y);
 
 			bool old_state = false;
-			if (false == atomic_compare_exchange_strong(&reinterpret_cast<CNPC*>(SharedData::g_clients[key])->m_is_active, &old_state, true)) return;
+			if (false == atomic_compare_exchange_strong(&npc->m_is_active, &old_state, true)) return;
 
-			SharedData::g_clients[key]->m_s_lock.lock();
-			SharedData::g_clients[key]->m_state = ST_INGAME;
-			SharedData::g_clients[key]->m_s_lock.unlock();
-			
 			bool keep_alive = false;
-			for (int j = 0; j < MAX_USER; ++j) {
-				if (SharedData::g_clients[j]->m_state != ST_INGAME) continue;
-				if (can_see(static_cast<int>(key), j)) {
-					keep_alive = true;
-					break;
-				}
+			unordered_set<int> nearplist;
+			SharedData::g_sector.CreateNearPlayerList(nearplist, client_id, npc->m_x, npc->m_y);
+			if (!nearplist.empty()) keep_alive = true;
+
+			for (auto& cl : nearplist) {
+				CPlayer* p = reinterpret_cast<CPlayer*>(SharedData::g_clients[cl]);
+				p->SendAddObjectPacket(client_id);
+				p->SendStatChangePacket(client_id, npc->m_exp, npc->m_level, npc->m_hp, npc->m_maxhp);
 			}
+
 			if (true == keep_alive) {
-				reinterpret_cast<CNPC*>(SharedData::g_clients[key])->NPCAI();
-				TIMER_EVENT ev{ key, chrono::system_clock::now() + 1s, EV_NPC_AI, 0 };
+				npc->NPCAI();
+				TIMER_EVENT ev{ client_id, chrono::system_clock::now() + 1s, EV_NPC_AI, 0 };
 				SharedData::timer_queue.push(ev);
 			}
 			else {
 				bool old_state = true;
-				if (false == atomic_compare_exchange_strong(&reinterpret_cast<CNPC*>(SharedData::g_clients[key])->m_is_active, &old_state, false)) return;
+				if (false == atomic_compare_exchange_strong(&npc->m_is_active, &old_state, false)) return;
 			}
 			delete exp_over;
 		}
@@ -278,27 +356,22 @@ void WorkerThread()
 		case OP_NPC_AI:
 		{
 			bool keep_alive = false;	
-			SharedData::g_clients[key]->m_s_lock.lock();
-			if (reinterpret_cast<CNPC*>(SharedData::g_clients[key])->m_state == ST_INGAME) {
-				SharedData::g_clients[key]->m_s_lock.unlock();
-				for (int j = 0; j < MAX_USER; ++j) {
-					if (SharedData::g_clients[j]->m_state != ST_INGAME) continue;
-					if (can_see(static_cast<int>(key), j)) {
-						keep_alive = true;
-						break;
-					}
-				}
-			}
-			else
-				SharedData::g_clients[key]->m_s_lock.unlock();
+			CNPC* npc = reinterpret_cast<CNPC*>(SharedData::g_clients[client_id]);
+			if (false == npc->m_is_active) break;
+			
+			unordered_set<int> nearplist;
+			SharedData::g_sector.CreateNearPlayerList(nearplist, client_id, npc->m_x, npc->m_y);
+			if (!nearplist.empty()) keep_alive = true;
+
 			if (true == keep_alive) {
-				reinterpret_cast<CNPC*>(SharedData::g_clients[key])->NPCAI();
-				TIMER_EVENT ev{ key, chrono::system_clock::now() + 1s, EV_NPC_AI, 0 };	
+				npc->NPCAI();
+				
+				TIMER_EVENT ev{ client_id, chrono::system_clock::now() + 1s, EV_NPC_AI, 0 };
 				SharedData::timer_queue.push(ev);
 			}
 			else {
 				bool old_state = true;
-				if (false == atomic_compare_exchange_strong(&reinterpret_cast<CNPC*>(SharedData::g_clients[key])->m_is_active, &old_state, false)) return;
+				if (false == atomic_compare_exchange_strong(&npc->m_is_active, &old_state, false)) return;
 			}
 			delete exp_over;
 		}
@@ -340,13 +413,11 @@ int main()
 
 	vector <thread> worker_threads;
 	int num_threads = std::thread::hardware_concurrency();
-	for (int i = 0; i < num_threads - 3; ++i)
+	for (int i = 0; i < num_threads ; ++i)
 		worker_threads.emplace_back(WorkerThread);
 	thread db_thread([&]() {SharedData::g_db.DB_Thread(); });
 	thread timer_thread{ do_timer };
-	//thread tick_thread{ do_tick };
 
-	//tick_thread.join();
 	timer_thread.join();
 	db_thread.join();
 	for (auto& th : worker_threads)

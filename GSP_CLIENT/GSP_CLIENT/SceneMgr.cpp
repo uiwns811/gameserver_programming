@@ -33,6 +33,7 @@ void CSceneMgr::Update()
 
 void CSceneMgr::Render()
 {
+	if (m_bRender == false) return;
 	m_pCurScene->Render();
 }
 

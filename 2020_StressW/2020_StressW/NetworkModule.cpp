@@ -19,7 +19,7 @@ using namespace chrono;
 
 extern HWND		hWnd;
 
-const static int MAX_TEST = 20000;
+const static int MAX_TEST = 5000;
 const static int MAX_CLIENTS = MAX_TEST * 2;		// 서버 과부하로 인한 접속 종료까지 생각한 크기
 const static int INVALID_ID = -1;
 const static int MAX_PACKET_SIZE = 255;
@@ -27,7 +27,7 @@ const static int MAX_BUFF_SIZE = 255;
 
 #pragma comment (lib, "ws2_32.lib")
 
-#include "..\..\protocol.h"
+#include "..\..\protocol_2022.h"
 
 HANDLE g_hiocp;
 
@@ -127,8 +127,8 @@ void SendPacket(int cl, void* packet)
 void ProcessPacket(int ci, unsigned char packet[])
 {
 	switch (packet[1]) {
-	case SC_MOVE_PLAYER: {
-		SC_MOVE_PLAYER_PACKET* move_packet = reinterpret_cast<SC_MOVE_PLAYER_PACKET*>(packet);
+	case SC_MOVE_OBJECT: {
+		SC_MOVE_OBJECT_PACKET* move_packet = reinterpret_cast<SC_MOVE_OBJECT_PACKET*>(packet);
 		if (move_packet->id < MAX_CLIENTS) {
 			int my_id = client_map[move_packet->id];
 			if (-1 != my_id) {
@@ -146,25 +146,44 @@ void ProcessPacket(int ci, unsigned char packet[])
 		}
 	}
 	break;
-	case SC_ADD_PLAYER: break;
-	case SC_REMOVE_PLAYER: break;
-	case SC_LOGIN_OK:
+	case SC_LOGIN_INFO:
 	{
 		g_clients[ci].connected = true;
 		active_clients++;
-		SC_LOGIN_OK_PACKET* login_packet = reinterpret_cast<SC_LOGIN_OK_PACKET*>(packet);
+		SC_LOGIN_INFO_PACKET* login_packet = reinterpret_cast<SC_LOGIN_INFO_PACKET*>(packet);
 		int my_id = ci;
 		client_map[login_packet->id] = my_id;					// login_packet->id == 서버에서 날라온 아이디 -> client_map에 넣어서 매핑
 		g_clients[my_id].id = login_packet->id;
 		g_clients[my_id].x = login_packet->x;
 		g_clients[my_id].y = login_packet->y;
 
-		//cs_packet_teleport t_packet;
-		//t_packet.size = sizeof(t_packet);
-		//t_packet.type = CS_TELEPORT;
-		//SendPacket(my_id, &t_packet);
+		CS_TELEPORT_PACKET t_packet;
+		t_packet.size = sizeof(t_packet);
+		t_packet.type = CS_TELEPORT;
+		SendPacket(my_id, &t_packet);
 	}
 	break;
+	case SC_PLAYER_DIE: 
+	{
+		SC_PLAYER_DIE_PACKET* die_packet = reinterpret_cast<SC_PLAYER_DIE_PACKET*>(packet);
+		int my_id = die_packet->id;
+
+		CS_TELEPORT_PACKET t_packet;
+		t_packet.size = sizeof(t_packet);
+		t_packet.type = CS_TELEPORT;
+		SendPacket(my_id, &t_packet);
+	}
+	break;
+	case SC_ADD_OBJECT: break;
+	case SC_REMOVE_OBJECT: break;
+	case SC_CHAT: break;
+	case SC_LOGIN_OK: break;
+	case SC_LOGIN_FAIL:break;
+	case SC_ATTACK: break;
+	case SC_STAT_CHANGE:break;
+	case SC_INVITE_PARTY:break;
+	case SC_JOIN_PARTY:break;
+	case SC_EXIT_PARTY:break;
 	default: MessageBox(hWnd, L"Unknown Packet Type", L"ERROR", 0);
 		while (true);
 	}
@@ -318,7 +337,7 @@ void Adjust_Number_Of_Client()
 	CS_LOGIN_PACKET l_packet;
 
 	int temp = num_connections;
-	sprintf_s(l_packet.name, "%d", temp);
+	sprintf_s(l_packet.name, "dummy");
 	l_packet.size = sizeof(l_packet);
 	l_packet.type = CS_LOGIN;
 	SendPacket(num_connections, &l_packet);

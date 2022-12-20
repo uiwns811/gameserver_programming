@@ -11,8 +11,10 @@
 #include <unordered_set>
 #include <concurrent_queue.h>
 #include <concurrent_priority_queue.h>
+#include <queue>
 #include <sqlext.h> 
 #include <chrono>
+#include <list>
 #include <fstream>
 #include "..\..\protocol_2022.h"
 
@@ -32,13 +34,17 @@ constexpr int MAX_HP = 1000;
 constexpr int START_EXP = 100;
 constexpr int AGRO_AREA = 5;
 constexpr int LOAMING_AREA = 10;
+constexpr int START_X = 1002;
+constexpr int START_Y = 1002;
 
-enum COMP_TYPE { OP_ACCEPT, OP_RECV, OP_SEND, OP_DB_LOGIN_WITH_INFO, OP_DB_LOGIN_NO_INFO, OP_DB_UPDATE, OP_PLAYER_HEAL, OP_RESPAWN, OP_NPC_AI};
-enum EVENT_TYPE { EV_DB_UPDATE, EV_PLAYER_HEAL, EV_RESPAWN, EV_NPC_AI};
+enum COMP_TYPE { OP_ACCEPT, OP_RECV, OP_SEND, OP_DB_LOGIN_WITH_INFO, OP_DB_LOGIN_NO_INFO, OP_DB_UPDATE, OP_PLAYER_HEAL, OP_RESPAWN_NPC, OP_NPC_AI};
+enum EVENT_TYPE { EV_DB_UPDATE, EV_PLAYER_HEAL, EV_RESPAWN_NPC, EV_NPC_AI};
 enum S_STATE { ST_FREE, ST_ALLOC, ST_INGAME };
+
 enum NPC_ATTACK_TYPE { NPC_PEACE, NPC_AGRO };
 enum NPC_MOVE_TYPE { NPC_FIXED, NPC_LOAMING };
 enum NPC_STATE {NPC_IDLE, NPC_MOVE, NPC_ATTACK };
+enum NPC_TYPE {NPC_PEACE_FIXED, NPC_PEACE_LOAMING, NPC_AGRO_FIXED, NPC_AGRO_LOAMING};
 
 class CObject;
 class CSector;

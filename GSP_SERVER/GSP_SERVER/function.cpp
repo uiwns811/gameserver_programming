@@ -64,3 +64,9 @@ bool CanAttack(int from, int to)
 	else if (SharedData::g_clients[to]->m_x == x && SharedData::g_clients[to]->m_y == (y + 1)) return true;
 	else return false;
 }
+
+bool isInAgroArea(int from, int to)
+{
+	if (abs(SharedData::g_clients[from]->m_x - SharedData::g_clients[to]->m_x) > AGRO_AREA) return false;
+	return abs(SharedData::g_clients[from]->m_y - SharedData::g_clients[to]->m_y) <= AGRO_AREA;
+}

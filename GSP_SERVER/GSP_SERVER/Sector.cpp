@@ -17,12 +17,7 @@ void CSector::UpdateSector(int id, short x, short y, short oldx, short oldy)
 	if (m_sectorObjList[sctrX][sctrY].count(id) == 0) {
 		m_sectorObjList[sctrX][sctrY].insert(id);						// 현재 섹터 셋에 없으면 추가하고
 
-		int oldsctrX = oldx / SECTOR_SIZE;
-		int oldsctrY = oldx / SECTOR_SIZE;
-
-		if (m_sectorObjList[oldsctrX][oldsctrY].count(id) != 0) {		// 옛날 위치 섹터 셋에서 제거
-			m_sectorObjList[oldsctrX][oldsctrY].erase(id);
-		}
+		RemoveSector(id, oldx, oldy);
 	}		// 현재 섹터 셋에 있으면 그냥 넘어감
 }
 
@@ -49,12 +44,7 @@ void CSector::RemoveSector(int id, short x, short y)
 void CSector::FindNearObject(std::unordered_set<int>& nearlist, int id, int xIdx, int yIdx)
 {
 	for (auto& cl : m_sectorObjList[xIdx][yIdx]) {
-		SharedData::g_clients[cl]->m_s_lock.lock();
-		if (SharedData::g_clients[cl]->m_state != ST_INGAME) {
-			SharedData::g_clients[cl]->m_s_lock.unlock();
-			continue;
-		}
-		SharedData::g_clients[cl]->m_s_lock.unlock();
+		if (SharedData::g_clients[cl]->m_state != ST_INGAME) continue;
 		if (SharedData::g_clients[cl]->m_id == id) continue;
 		if (can_see(id, cl))
 			nearlist.insert(cl);
@@ -64,14 +54,9 @@ void CSector::FindNearObject(std::unordered_set<int>& nearlist, int id, int xIdx
 void CSector::FindNearPlayer(std::unordered_set<int>& nearlist, int id, int xIdx, int yIdx)
 {
 	for (auto& cl : m_sectorObjList[xIdx][yIdx]) {
-		SharedData::g_clients[cl]->m_s_lock.lock();
-		if (SharedData::g_clients[cl]->m_state != ST_INGAME) {
-			SharedData::g_clients[cl]->m_s_lock.unlock();
-			continue;
-		}
-		SharedData::g_clients[cl]->m_s_lock.unlock();
+		if (SharedData::g_clients[cl]->m_state != ST_INGAME) continue;
 		if (SharedData::g_clients[cl]->m_id == id) continue;
-		if (true == is_npc(SharedData::g_clients[cl]->m_id)) continue;
+		if (is_npc(SharedData::g_clients[cl]->m_id)) continue;
 		if (can_see(id, cl))
 			nearlist.insert(cl);
 	}

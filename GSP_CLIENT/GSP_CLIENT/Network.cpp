@@ -3,6 +3,7 @@
 #include "Map.h"
 #include "GameFramework.h"
 #include "GameGUI.h"
+#include "SceneMgr.h"
 
 CNetwork::CNetwork() : m_hostID(-1)
 {
@@ -84,7 +85,7 @@ void CNetwork::ProcessPacket(char* packet)
 	case SC_LOGIN_OK:
 	{
 		cout << "LOGIN OK!" << endl;
-		CMap::GetInst()->SetRender(true);
+		CSceneMgr::GetInst()->SetRender(true);
 	}
 	break;
 	case SC_LOGIN_FAIL:
@@ -128,6 +129,7 @@ void CNetwork::ProcessPacket(char* packet)
 		short x = my_packet->x;
 		short y = my_packet->y;
 		CObjectMgr::GetInst()->Move(id, x, y);
+		//cout << id << endl;
 		break;
 	}
 
@@ -135,12 +137,13 @@ void CNetwork::ProcessPacket(char* packet)
 	{
 		SC_REMOVE_OBJECT_PACKET* my_packet = reinterpret_cast<SC_REMOVE_OBJECT_PACKET*>(packet);
 		int id = my_packet->id;
-		CObjectMgr::GetInst()->RemoveObject(id);
+		if (CObjectMgr::GetInst()->isParty(id) == false)
+			CObjectMgr::GetInst()->RemoveObject(id);
 	}
 	break;
-	case SC_ATTACK_PLAYER:
+	case SC_ATTACK:
 	{
-		SC_ATTACK_PLAYER_PACKET* my_packet = reinterpret_cast<SC_ATTACK_PLAYER_PACKET*>(packet);
+		SC_ATTACK_PACKET* my_packet = reinterpret_cast<SC_ATTACK_PACKET*>(packet);
 		int id = my_packet->id;
 		CObjectMgr::GetInst()->Attack(id);
 	}
@@ -155,7 +158,7 @@ void CNetwork::ProcessPacket(char* packet)
 		else 
 			memcpy(chat.name, CObjectMgr::GetInst()->GetName(id), NAME_SIZE);
 		memcpy(chat.mess, my_packet->mess, CHAT_SIZE);
-		cout << chat.mess << endl;
+		chat.chat_time = chrono::system_clock::now();
 		CGameGUI::GetInst()->m_chat_data.emplace_back(chat);
 	}
 	break;
@@ -169,6 +172,33 @@ void CNetwork::ProcessPacket(char* packet)
 		int maxhp = my_packet->max_hp;
 		CObjectMgr::GetInst()->SetStat(id, exp, level, hp, maxhp);
 	}
+	break;
+	case SC_INVITE_PARTY:
+	{
+		SC_INVITE_PARTY_PACKET* my_packet = reinterpret_cast<SC_INVITE_PARTY_PACKET*>(packet);
+		int id = my_packet->id;			// 초대한 애
+		CGameGUI::GetInst()->SetRequestedId(id);
+		CGameGUI::GetInst()->SetShowPartyRequested(true);
+	}
+	break;
+	case SC_JOIN_PARTY:
+	{
+		SC_JOIN_PARTY_PACKET* my_packet = reinterpret_cast<SC_JOIN_PARTY_PACKET*>(packet);
+		int id = my_packet->id;		// 파티에 새로 들어온 애
+		if (id != m_hostID)
+			CObjectMgr::GetInst()->JoinParty(id);
+		else
+			CObjectMgr::GetInst()->JoinParty(CGameGUI::GetInst()->GetRequestedId());
+	}
+	break;
+	case SC_EXIT_PARTY:
+	{
+		SC_EXIT_PARTY_PACKET* my_packet = reinterpret_cast<SC_EXIT_PARTY_PACKET*>(packet);
+		int id = my_packet->id;
+		CObjectMgr::GetInst()->ExitParty(id);
+	}
+	break;
+	case SC_PLAYER_DIE:
 	break;
 	default:
 		printf("Unknown PACKET type [%d]\n", packet[1]);
@@ -216,12 +246,31 @@ void CNetwork::SendLogoutPacket()
 	SendPacket(&p);
 }
 
-void CNetwork::SendChatPacket(char* mess)
+void CNetwork::SendChatPacket(const char* mess)
 {
 	CS_CHAT_PACKET p;
 	p.size = sizeof(CS_CHAT_PACKET);
 	p.type = CS_CHAT;
 	strcpy_s(p.mess, mess);
+	SendPacket(&p);
+}
+
+void CNetwork::SendInvitePartyPacket()
+{
+	CS_INVITE_PARTY_PACKET p;
+	p.size = sizeof(CS_INVITE_PARTY_PACKET);
+	p.type = CS_INVITE_PARTY;
+	SendPacket(&p);
+}
+
+void CNetwork::SendJoinPartyPacket()
+{
+	if (!CObjectMgr::GetInst()->GetParty().empty()) return;
+
+	CS_JOIN_PARTY_PACKET p;
+	p.size = sizeof(CS_JOIN_PARTY_PACKET);
+	p.type = CS_JOIN_PARTY;
+	p.id = CGameGUI::GetInst()->GetRequestedId();
 	SendPacket(&p);
 }
 

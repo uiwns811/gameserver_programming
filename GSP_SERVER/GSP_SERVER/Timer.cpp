@@ -29,10 +29,10 @@ void do_timer()
 				PostQueuedCompletionStatus(SharedData::g_iocp, 1, ev.obj_id, &over->over);
 			}
 			break;
-			case EV_RESPAWN:
+			case EV_RESPAWN_NPC:
 			{
 				EXP_OVER* over = new EXP_OVER;
-				over->op_type = OP_RESPAWN;
+				over->op_type = OP_RESPAWN_NPC;
 				PostQueuedCompletionStatus(SharedData::g_iocp, 1, ev.obj_id, &over->over);
 			}
 			break;

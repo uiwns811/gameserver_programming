@@ -1,5 +1,6 @@
 #include "Database.h"
 #include "Player.h"
+#include "function.h"
 
 void CDataBase::DB_Initialize()
 {
@@ -35,6 +36,8 @@ void CDataBase::DB_Initialize()
 	retcode = SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt);
 
 	cout << "DB connect complete" << endl;
+
+	m_dummy_client = "dummy";
 }
 
 void CDataBase::DB_Thread()
@@ -75,6 +78,16 @@ void CDataBase::DB_CheckLogin(DB_EVENT event)
 	SQLLEN cbName = 0;
 
 	wstring player_name(event.name, &event.name[NAME_SIZE]);
+	string name(event.name);
+
+	if (name.compare(m_dummy_client) == 0) {
+		EXP_OVER* over = new EXP_OVER;
+		over->op_type = OP_DB_LOGIN_NO_INFO;
+
+		PostQueuedCompletionStatus(SharedData::g_iocp, 1, event.obj_id, &over->over);
+
+		return;
+	}
 
 	wstring query = L"EXEC check_login " + player_name;
 
@@ -145,6 +158,7 @@ void CDataBase::DB_LoginOk(DB_EVENT event)
 void CDataBase::DB_InsertUserData(DB_EVENT event)
 {
 	string name(event.name);
+
 	short x = SharedData::g_clients[event.obj_id]->m_x;
 	short y = SharedData::g_clients[event.obj_id]->m_y;
 	int exp = SharedData::g_clients[event.obj_id]->m_exp;
@@ -171,7 +185,9 @@ void CDataBase::DB_InsertUserData(DB_EVENT event)
 void CDataBase::DB_SaveData()		// player info 전체 업데이트
 {
 	for (auto& cl : SharedData::g_clients) {
-		if (cl->m_id > MAX_USER) continue;
+		if (is_npc(cl->m_id)) continue;
+		string name(cl->m_name);
+		if (name.compare(m_dummy_client) == 0) return;
 
 		cl->m_s_lock.lock();
 		if (cl->m_state != ST_INGAME) {
@@ -181,7 +197,6 @@ void CDataBase::DB_SaveData()		// player info 전체 업데이트
 		cl->m_s_lock.unlock();
 
 		wstring player_name(cl->m_name, &cl->m_name[NAME_SIZE]);
-		string name(cl->m_name);
 		string query_s = "EXEC update_data " + name + ", " + to_string(cl->m_x) + ", " + to_string(cl->m_y) + ", " + to_string(cl->m_exp) + ", " + to_string(cl->m_level) + ", " + to_string(cl->m_hp);
 
 		wstring query(query_s.begin(), query_s.end());
@@ -197,6 +212,8 @@ void CDataBase::DB_SaveData()		// player info 전체 업데이트
 void CDataBase::DB_UpdateUserData(DB_EVENT event)		// disconnect했을 때 특정 객체 업데이트
 {
 	string name(event.name);
+	if (name.compare(m_dummy_client) == 0) return;
+
 	short x = SharedData::g_clients[event.obj_id]->m_x;
 	short y = SharedData::g_clients[event.obj_id]->m_y;
 	int exp = SharedData::g_clients[event.obj_id]->m_exp;

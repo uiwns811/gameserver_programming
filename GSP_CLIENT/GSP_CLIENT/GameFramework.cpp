@@ -23,6 +23,7 @@ void CGameFramework::Update()
 {
 	CNetwork::GetInst()->Update();
 	CSceneMgr::GetInst()->Update();
+	CGameGUI::GetInst()->Update();
 	CSceneMgr::GetInst()->Render();
 	CGameGUI::GetInst()->Render();
 }

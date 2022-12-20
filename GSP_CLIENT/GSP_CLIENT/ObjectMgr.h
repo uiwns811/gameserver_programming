@@ -9,6 +9,7 @@ class CObjectMgr : public TSingleton<CObjectMgr>
 private:
 	std::unordered_map<int, CObject*> players;
 	std::unordered_map<int, CObject*> npc;
+	std::unordered_set<int> m_party;
 	int m_avatarID = -1;
 
 	sf::Texture* playerTexAvatar;
@@ -39,15 +40,25 @@ public:
 	void SetLevel(int id, int level) { players[id]->SetLevel(level); }
 	void SetHP(int id, int hp) { players[id]->SetHp(hp); }
 	void SetMaxHp(int id, int maxhp) { players[id]->SetMaxHp(maxhp); }
-	void SetStat(int id, int exp, int level, int hp, int maxhp) { players[id]->SetStat(exp, level, hp, maxhp); }
+	void SetStat(int id, int exp, int level, int hp, int maxhp);
 
 	void SetAvatar(int id);
 
 	int GetAvatarID() { return m_avatarID; }
 	void GetAvatarInfo(char* name, short& x, short& y, int& exp, int& level, int& hp, int& maxhp);
+	void GetPlayerInfo(int id, char* name, short& x, short& y, int& exp, int& level, int& hp, int& maxhp);
+	void GetPlayerStat(int id, short& x, short& y, int& hp, int& maxhp);
+
+	bool IsInPlayers(int id) { if (players.count(id) != 0) return true; else return false; }
 
 	char* GetName(int id) { return players[id]->GetName(); }
 
 	void GetTLPos(short& left, short& top) { left = m_left; top = m_top; }
+
+	unordered_set<int> GetParty() { return m_party; }
+	void JoinParty(int id) { m_party.insert(id); }
+	void ExitParty(int id) { m_party.erase(id); }
+
+	bool isParty(int id) { if (m_party.count(id) != 0) return true; else return false; }
 };
 

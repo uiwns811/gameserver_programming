@@ -7,6 +7,8 @@ bool is_npc(int object_id);
 
 bool can_see(int from, int to);
 
+bool isInAgroArea(int from, int to);
+
 int get_new_client_id();
 
 void InitializeMap();

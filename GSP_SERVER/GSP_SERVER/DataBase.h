@@ -16,6 +16,7 @@ private:
 	SQLHSTMT hstmt = 0;         // sql 명령어 statement의 핸들
 	SQLRETURN retcode;
 
+	string m_dummy_client;
 
 public:
 	concurrency::concurrent_queue<DB_EVENT> db_queue;

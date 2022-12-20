@@ -43,8 +43,6 @@ void CMap::Update()
 
 void CMap::Render()
 {
-	if (!m_bRender) return;
-
 	short left, top;
 	CObjectMgr::GetInst()->GetTLPos(left, top);
 
